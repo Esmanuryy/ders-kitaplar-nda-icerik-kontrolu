@@ -1,0 +1,42 @@
+# Her satıra bir kelime yaz (kök hâliyle). # ile başlayan satırlar yorumdur.
+# Kategori: argo / hakaret / küfür / gündelik konuşma dili
+# Bu liste ÖRNEKTİR. Ödevde kendi listeni genişletmen gerekir.
+
+# --- Hakaret / argo ---
+aptal
+salak
+gerizekalı
+dangalak
+ahmak
+budala
+serseri
+hıyar
+şerefsiz
+pezevenk
+ezik
+embesil
+moron
+kıro
+zibidi
+andaval
+angut
+
+# --- Küfür kısaltmaları / ünlemler ---
+amk
+aq
+siktir
+orospu
+
+# --- Ders kitabına uygun olmayan gündelik konuşma dili ---
+kanka
+valla
+vallahi
+bi
+bişey
+hadi
+yav
+lan
+ulan
+falan
+filan
+abicim

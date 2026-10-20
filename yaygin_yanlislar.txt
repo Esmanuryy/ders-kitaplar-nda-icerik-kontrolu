@@ -1,0 +1,22 @@
+# yanlış=doğru  (sık yapılan hatalar; Zemberek bunların bir kısmını "geçerli kelime" sayabildiği için ayrı tutuyoruz)
+# Sadece TEK kelimelik yanlışlar yazılır. Listeyi kendin genişlet.
+herşey=her şey
+birşey=bir şey
+hiçbirşey=hiçbir şey
+hiçşey=hiçbir şey
+herkez=herkes
+yanlız=yalnız
+yalnış=yanlış
+şöyleki=şöyle ki
+herhangibir=herhangi bir
+yinede=yine de
+hemde=hem de
+pekçok=pek çok
+yada=ya da
+veyahutta=veyahut
+klavuz=kılavuz
+orjinal=orijinal
+mütevazi=mütevazı
+eşşek=eşek
+ögrenci=öğrenci
+ögretmen=öğretmen

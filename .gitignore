@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Programın ürettiği dosyalar
+rapor.csv
+rapor.html
+tdk_onbellek.json
+tdk_onbellek_deneme.json
+
+# Editör
+.vscode/
