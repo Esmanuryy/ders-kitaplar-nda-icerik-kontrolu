@@ -1,0 +1,55 @@
+# Her zaman büyük harfle başlaması gereken özel isimler (küçük harfle yazılırsa hata sayılır).
+# Her satıra bir kelime yaz, küçük harfle. Listeyi kendin genişlet.
+# Belirsiz kelimeleri (hem özel isim hem normal kelime olanları: van, ordu, aydın gibi) ekleme.
+
+# --- Ülke, kıta, bölge ---
+türkiye
+avrupa
+asya
+afrika
+amerika
+anadolu
+trakya
+karadeniz
+akdeniz
+marmara
+
+# --- Şehirler ---
+ankara
+istanbul
+izmir
+bursa
+antalya
+adana
+konya
+mersin
+samsun
+trabzon
+eskişehir
+gaziantep
+diyarbakır
+erzurum
+kayseri
+sivas
+manisa
+balıkesir
+çanakkale
+edirne
+rize
+giresun
+sinop
+
+# --- Kişi ---
+atatürk
+
+# --- Dil ve ulus adları ---
+türkçe
+türk
+ingilizce
+almanca
+fransızca
+arapça
+rusça
+farsça
+ispanyolca
+italyanca

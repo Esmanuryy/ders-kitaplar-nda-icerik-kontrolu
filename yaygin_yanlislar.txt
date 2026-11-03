@@ -1,22 +1,91 @@
 # yanlış=doğru  (sık yapılan hatalar; Zemberek bunların bir kısmını "geçerli kelime" sayabildiği için ayrı tutuyoruz)
-# Sadece TEK kelimelik yanlışlar yazılır. Listeyi kendin genişlet.
+# Tek kelimelik yanlışların çekimli hâlleri de otomatik yakalanır:
+#   yanlız=yalnız  yazılırsa  yanlızca -> yalnızca,  herşeyi -> her şeyi  olarak bulunur.
+# Listeyi kendin genişlet (her satıra bir tane).
+
+# --- "her", "hiç", "bir" ile yazılan ayrı yazılması gereken kelimeler ---
 herşey=her şey
+hersey=her şey
 birşey=bir şey
 hiçbirşey=hiçbir şey
 hiçşey=hiçbir şey
-herkez=herkes
-yanlız=yalnız
-yalnış=yanlış
-şöyleki=şöyle ki
 herhangibir=herhangi bir
+herzaman=her zaman
+hergün=her gün
+herbiri=her biri
+herneyse=her neyse
+hiçkimse=hiç kimse
+birdaha=bir daha
+birkez=bir kez
+birde=bir de
+
+# --- bitişik yazılan "de/da/ki/ya" yapıları ---
+şöyleki=şöyle ki
 yinede=yine de
 hemde=hem de
 pekçok=pek çok
 yada=ya da
 veyahutta=veyahut
+dahada=daha da
+çokta=çok da
+değilmi=değil mi
+yanısıra=yanı sıra
+şuan=şu an
+şuanda=şu anda
+
+# --- yalnız / yanlış karışıklıkları ---
+yanlız=yalnız
+yalnış=yanlış
+
+# --- Yaygın yanlış yazılışlar ---
+herkez=herkes
 klavuz=kılavuz
 orjinal=orijinal
 mütevazi=mütevazı
 eşşek=eşek
 ögrenci=öğrenci
 ögretmen=öğretmen
+enterasan=enteresan
+kordinat=koordinat
+kordinasyon=koordinasyon
+enstürman=enstrüman
+egzos=egzoz
+şöför=şoför
+tehdid=tehdit
+mevcud=mevcut
+dolayısıyle=dolayısıyla
+
+# --- Birleşik yazılan soru ekleri (Zemberek bunları geçerli kelime sayabiliyor) ---
+doğrumu=doğru mu
+varmı=var mı
+yokmu=yok mu
+nasılmı=nasıl mı
+iyimi=iyi mi
+güzelmi=güzel mi
+
+# --- Başka yaygın yanlışlar ---
+süpriz=sürpriz
+sürpiriz=sürpriz
+antreman=antrenman
+traş=tıraş
+laboratuar=laboratuvar
+inkilap=inkılap
+makina=makine
+sandalya=sandalye
+meyva=meyve
+tesbit=tespit
+ahçı=aşçı
+şarz=şarj
+pilaj=plaj
+kıravat=kravat
+entellektüel=entelektüel
+hakkaten=hakikaten
+ilerki=ileriki
+kütüpane=kütüphane
+matamatik=matematik
+
+# --- Ayrı yazılınca yanlış olanlar (iki kelime birlikte aranır) ---
+bir kaç=birkaç
+bir çok=birçok
+hiç bir=hiçbir
+her hangi=herhangi

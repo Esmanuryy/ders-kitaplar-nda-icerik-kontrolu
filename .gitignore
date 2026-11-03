@@ -11,3 +11,6 @@ tdk_onbellek_deneme.json
 
 # Editör
 .vscode/
+
+# Kişisel belgeler
+*.docx

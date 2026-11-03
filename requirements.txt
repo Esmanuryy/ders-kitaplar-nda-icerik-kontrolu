@@ -1,4 +1,5 @@
 pymupdf
 zemberek-python
 requests
+flask
 setuptools<81

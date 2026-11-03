@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ders Kitabı Denetleyici</title>
+<style>
+  /* Renkler meb.gov.tr'den: kırmızı #DC0D15, beyaz, açık gri #F8F8F8, koyu metin #1C1C1C */
+  :root {
+    color-scheme: light;
+    --bg: #f8f8f8; --card: #ffffff; --text: #1c1c1c; --muted: #5b616a; --line: #dfe1e4;
+    --primary: #dc0d15; --primary-dark: #b30a11; --primary-soft: #fdf1f1;
+    --argo: #b30a11; --argo-bg: #fdecec;
+    --yazim: #8a5300; --yazim-bg: #fdf4e3;
+    --nokta: #3f4a5a; --nokta-bg: #eef0f3;
+    --ok: #1c6b3c; --ok-bg: #edf7f0; --warn: #8a5300; --warn-bg: #fdf4e3;
+    --mark: #f4f0bc;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+
+  /* ---------- Üst bölüm ---------- */
+  .hero { background: var(--card); border-top: 6px solid var(--primary); border-bottom: 1px solid var(--line); padding: 26px 0; }
+  .hero h1 { margin: 0 0 6px; font-size: clamp(1.5rem, 4vw, 1.9rem); line-height: 1.25; }
+  .hero p { margin: 0; max-width: 680px; color: var(--muted); }
+
+  /* ---------- Kartlar ---------- */
+  .kart { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 24px; }
+  .ana { margin-top: 24px; }
+  h2 { margin: 0 0 4px; font-size: 1.25rem; }
+  .alt-baslik { margin: 0 0 18px; color: var(--muted); font-size: .95rem; }
+
+  /* ---------- Sekmeler ---------- */
+  .sekmeler { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+  .sekme { border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; background: transparent; color: var(--muted); font: inherit; font-weight: 600; padding: 8px 14px; cursor: pointer; }
+  .sekme[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); }
+  .sekme:focus-visible, .btn:focus-visible, .chip:focus-visible, .yukle:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+  /* ---------- Dosya yükleme alanı ---------- */
+  .yukle { display: block; border: 2px dashed var(--line); background: var(--bg); border-radius: 6px; padding: 34px 16px; text-align: center; cursor: pointer; transition: background .15s, border-color .15s; }
+  .yukle:hover, .yukle.surukle { background: var(--primary-soft); border-color: var(--primary); }
+  .yukle strong { display: block; font-size: 1.05rem; }
+  .yukle span { color: var(--muted); font-size: .92rem; }
+  .yukle input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .secili { margin-top: 12px; padding: 10px 14px; border-radius: 4px; background: var(--ok-bg); color: var(--ok); font-weight: 600; word-break: break-all; }
+
+  textarea { width: 100%; min-height: 170px; resize: vertical; padding: 14px; border-radius: 4px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; }
+  .ipucu { margin: 6px 0 0; font-size: .85rem; color: var(--muted); }
+
+  .secenek { display: flex; align-items: flex-start; gap: 10px; margin-top: 18px; }
+  .secenek input { margin-top: 5px; width: 18px; height: 18px; accent-color: var(--primary); }
+  .secenek small { display: block; color: var(--muted); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 4px; padding: 11px 26px; font: inherit; font-weight: 700; cursor: pointer; background: var(--primary); color: #fff; }
+  .btn:hover { background: var(--primary-dark); }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+  .btn.ikincil { background: var(--card); color: var(--text); border: 1px solid var(--line); text-decoration: none; }
+  .btn.ikincil:hover { background: var(--bg); border-color: var(--muted); }
+  .btn.kucuk { padding: 8px 16px; font-size: .92rem; }
+  .eylem { margin-top: 20px; }
+
+  .hata { margin-top: 16px; padding: 12px 16px; border-radius: 4px; background: var(--argo-bg); color: var(--argo); font-weight: 600; }
+
+  /* ---------- Yükleniyor ---------- */
+  .bekle { position: fixed; inset: 0; background: rgba(28, 28, 28, .5); display: none; align-items: center; justify-content: center; z-index: 10; padding: 20px; }
+  .bekle.acik { display: flex; }
+  .bekle-kutu { background: var(--card); border-radius: 6px; padding: 30px 34px; text-align: center; width: min(440px, 100%); }
+  .cubuk { height: 8px; border-radius: 2px; background: var(--line); overflow: hidden; margin: 14px 0 8px; }
+  #bekle-cubuk { height: 100%; width: 0; background: var(--primary); transition: width .4s ease; }
+  .bekle-asama { margin: 0 0 8px; font-size: .95rem; font-weight: 600; word-break: break-word; }
+  .donen { width: 44px; height: 44px; margin: 0 auto 14px; border: 4px solid var(--line); border-top-color: var(--primary); border-radius: 50%; animation: don .9s linear infinite; }
+  @keyframes don { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .donen { animation-duration: 3s; } }
+
+  /* ---------- Sonuçlar ---------- */
+  #sonuclar { display: none; margin-top: 28px; scroll-margin-top: 16px; }
+  .durum { padding: 12px 16px; border-radius: 4px; margin-bottom: 18px; font-size: .95rem; background: var(--ok-bg); color: var(--ok); }
+  .durum.uyari { background: var(--warn-bg); color: var(--warn); }
+  .ozel-isimler { border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; margin-bottom: 20px; }
+  .ozel-isimler summary { cursor: pointer; font-weight: 600; }
+  .ozel-isimler p { margin: 10px 0 0; color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
+  .ozet { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .ozet div { border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; background: var(--card); }
+  .ozet b { display: block; font-size: 1.6rem; line-height: 1.2; }
+  .ozet span { color: var(--muted); font-size: .85rem; }
+  .ozet .argo b { color: var(--argo); } .ozet .yazim b { color: var(--yazim); } .ozet .nokta b { color: var(--nokta); }
+
+  .arac { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: .92rem; padding: 6px 14px; border-radius: 4px; cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .ara { flex: 1 1 200px; min-width: 160px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 4px; background: var(--card); color: var(--text); font: inherit; }
+  .indir { display: flex; gap: 8px; margin-left: auto; }
+
+  .liste { display: grid; gap: 12px; }
+  .bulgu { border: 1px solid var(--line); border-left-width: 4px; border-radius: 4px; padding: 14px 16px; background: var(--card); }
+  .bulgu.argo { border-left-color: var(--argo); } .bulgu.yazim { border-left-color: var(--yazim); } .bulgu.nokta { border-left-color: var(--nokta); }
+  .bulgu-ust { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 6px; }
+  .rozet { font-size: .78rem; font-weight: 700; padding: 2px 8px; border-radius: 3px; }
+  .rozet.argo { background: var(--argo-bg); color: var(--argo); } .rozet.yazim { background: var(--yazim-bg); color: var(--yazim); } .rozet.nokta { background: var(--nokta-bg); color: var(--nokta); }
+  .konum { color: var(--muted); font-size: .88rem; }
+  .kelime { font-size: 1.15rem; font-weight: 700; word-break: break-word; }
+  .bulgu p { margin: 4px 0 0; }
+  .aciklama { color: var(--muted); font-size: .93rem; }
+  .oneri { font-size: .95rem; }
+  .baglam { margin-top: 8px !important; padding: 8px 12px; border-radius: 4px; background: var(--bg); font-size: .9rem; color: var(--muted); word-break: break-word; }
+  mark { background: var(--mark); color: var(--text); padding: 0 3px; border-radius: 2px; }
+  .bos { text-align: center; padding: 36px 10px; color: var(--ok); font-weight: 700; font-size: 1.1rem; }
+  .daha { margin-top: 16px; text-align: center; }
+  .not { margin-top: 12px; color: var(--muted); font-size: .88rem; }
+
+  /* ---------- Nasıl çalışır ---------- */
+  .bolum { margin-top: 36px; }
+  .adimlar { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .adim { border: 1px solid var(--line); background: var(--card); border-radius: 6px; padding: 18px; }
+  .amac-giris { margin: 0 0 16px; max-width: 760px; color: var(--muted); }
+  .adim h3 { margin: 0 0 4px; font-size: 1.02rem; }
+  .adim p { margin: 0; color: var(--muted); font-size: .92rem; }
+  .kaynak { margin-top: 14px; font-size: .9rem; color: var(--muted); }
+  footer { margin: 40px 0 30px; text-align: center; color: var(--muted); font-size: .88rem; }
+  .gizli { display: none !important; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Ders Kitabı Denetleyici</h1>
+    <p>PDF formatındaki ders kitaplarını yükleyin; argo ifadeleri, yazım ve büyük/küçük harf hatalarını, noktalama sorunlarını sayfa ve paragraf numarasıyla birlikte bulalım.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ===== Denetim kartı ===== -->
+  <section class="kart ana" aria-labelledby="denetle-baslik">
+    <h2 id="denetle-baslik">Denetlemeye başlayın</h2>
+    <p class="alt-baslik">Bir PDF yükleyin ya da denemek için kısa bir metin yapıştırın.</p>
+
+    <div class="sekmeler" role="tablist" aria-label="Giriş yöntemi">
+      <button class="sekme" role="tab" id="sekme-pdf" aria-selected="true" aria-controls="panel-pdf">PDF yükle</button>
+      <button class="sekme" role="tab" id="sekme-metin" aria-selected="false" aria-controls="panel-metin">Metin yapıştır</button>
+    </div>
+
+    <div id="panel-pdf" role="tabpanel" aria-labelledby="sekme-pdf">
+      <label class="yukle" id="surukleme" for="pdf-girdi" tabindex="0">
+        <strong>PDF dosyasını buraya sürükleyin</strong>
+        <span>veya tıklayıp bilgisayarınızdan seçin (en fazla {{ max_mb }} MB)</span>
+        <input type="file" id="pdf-girdi" accept="application/pdf,.pdf">
+      </label>
+      <div class="secili gizli" id="secili"></div>
+    </div>
+
+    <div id="panel-metin" role="tabpanel" aria-labelledby="sekme-metin" class="gizli">
+      <label for="metin-girdi" class="alt-baslik" style="display:block;margin-bottom:8px">Denetlenecek metin</label>
+      <textarea id="metin-girdi" placeholder="Örnek: bugün hava güzel. ben okula gittim. Herşey çok guzel, salak kanka!!"></textarea>
+      <p class="ipucu">Paragrafları boş bir satırla ayırırsanız her biri ayrı paragraf sayılır.</p>
+    </div>
+
+    <label class="secenek">
+      <input type="checkbox" id="tdk-sec" checked>
+      <span><strong>TDK sözlüğünü kullan</strong>
+        <small>İnternet gerekir. Kapatırsanız yalnızca bilgisayardaki sözlük ve listeler kullanılır (daha hızlıdır).</small></span>
+    </label>
+
+    <div class="eylem"><button class="btn" id="denetle-btn" disabled>Denetle</button></div>
+    <div class="hata gizli" id="hata" role="alert"></div>
+  </section>
+
+  <!-- ===== Sonuçlar ===== -->
+  <section id="sonuclar" aria-live="polite" aria-labelledby="sonuc-baslik">
+    <div class="kart">
+      <h2 id="sonuc-baslik">Sonuçlar</h2>
+      <p class="alt-baslik" id="sonuc-dosya"></p>
+      <div class="durum" id="durum"></div>
+
+      <div class="ozet" id="ozet"></div>
+
+      <details class="ozel-isimler gizli" id="ozel-kutu">
+        <summary id="ozel-baslik"></summary>
+        <p id="ozel-liste"></p>
+      </details>
+
+      <div class="arac">
+        <div id="chipler" role="group" aria-label="Hata türüne göre filtrele" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+        <input class="ara" id="ara" type="search" placeholder="Kelime ara…" aria-label="Sonuçlarda ara">
+        <div class="indir">
+          <a class="btn ikincil kucuk" id="indir-csv" href="#">CSV indir</a>
+          <a class="btn ikincil kucuk" id="indir-html" href="#">HTML rapor</a>
+        </div>
+      </div>
+
+      <div class="liste" id="liste"></div>
+      <div class="daha gizli" id="daha"><button class="btn ikincil" id="daha-btn">Daha fazla göster</button></div>
+      <p class="not gizli" id="kesildi"></p>
+    </div>
+  </section>
+
+  <!-- ===== Sitenin amacı ===== -->
+  <section class="bolum" aria-labelledby="amac-baslik">
+    <h2 id="amac-baslik" style="margin-bottom:10px">Sitenin amacı</h2>
+    <p class="amac-giris">Ders kitaplarında kalan yazım hataları, uygunsuz ifadeler ve noktalama sorunları öğrencilerin yanlış öğrenmesine yol açabilir. Bu site, bir ders kitabının metnini otomatik olarak tarayarak bu sorunları kitap basılmadan önce fark etmeyi kolaylaştırır.</p>
+    <div class="adimlar">
+      <div class="adim"><h3>Neleri bulur?</h3><p>Argo ve ders kitabına uygun olmayan ifadeleri, yazım ve büyük/küçük harf hatalarını, noktalama ve kelime tekrarı sorunlarını bulur.</p></div>
+      <div class="adim"><h3>Sonucu nasıl verir?</h3><p>Her sorunun hangi sayfada ve hangi paragrafta olduğunu, nedenini ve düzeltme önerisini gösterir. Sonuçları CSV veya HTML rapor olarak indirebilirsiniz.</p></div>
+      <div class="adim"><h3>Kimler kullanabilir?</h3><p>Ders kitabı yazarları, editörler ve öğretmenler, metni incelemeden önce hızlı bir ön kontrol yapmak için kullanabilir.</p></div>
+    </div>
+    <p class="kaynak">Not: Her kelime tek tek taranır; anlamına bakılmaz, kelimenin yazılışı ve sözlük kaydı incelenir. Özel isimler ayrı listelenir. Denetim otomatik yapıldığı için özel isimler ve terimler bazen yanlışlıkla işaretlenebilir. Son kararı vermeden önce sonuçları gözden geçirin.</p>
+  </section>
+</main>
+
+<footer>Dönem projesi · Esmanur Yılmaz</footer>
+
+<div class="bekle" id="bekle" role="status" aria-live="polite">
+  <div class="bekle-kutu">
+    <div class="donen"></div>
+    <strong>Analiz ediliyor…</strong>
+    <div class="cubuk" aria-hidden="true"><div id="bekle-cubuk"></div></div>
+    <p class="bekle-asama" id="bekle-asama">Hazırlanıyor…</p>
+    <p class="ipucu">Büyük kitaplarda bu işlem birkaç dakika sürebilir. Lütfen bu sayfayı kapatmayın.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
+  const KRITER = {
+    ARGO: { ad: "Argo / uygunsuz", sinif: "argo" },
+    YAZIM: { ad: "Yazım", sinif: "yazim" },
+    NOKTALAMA: { ad: "Noktalama", sinif: "nokta" },
+  };
+  const SAYFA_BOYUTU = 100;
+  const MAX_MB = {{ max_mb }};
+
+  let secilenDosya = null;
+  let sonuc = null, filtre = "TUMU", arama = "", gosterilen = SAYFA_BOYUTU;
+
+  // Güvenli öğe oluşturucu: PDF'ten gelen metin asla HTML olarak yorumlanmaz (textContent).
+  function el(etiket, sinif, metin) {
+    const e = document.createElement(etiket);
+    if (sinif) e.className = sinif;
+    if (metin !== undefined) e.textContent = metin;
+    return e;
+  }
+  const trKucuk = (s) => s.toLocaleLowerCase("tr");
+
+  /* ---------- Sekmeler ---------- */
+  function sekmeSec(pdfMi) {
+    $("#sekme-pdf").setAttribute("aria-selected", pdfMi);
+    $("#sekme-metin").setAttribute("aria-selected", !pdfMi);
+    $("#panel-pdf").classList.toggle("gizli", !pdfMi);
+    $("#panel-metin").classList.toggle("gizli", pdfMi);
+    butonDurumu();
+  }
+  $("#sekme-pdf").addEventListener("click", () => sekmeSec(true));
+  $("#sekme-metin").addEventListener("click", () => sekmeSec(false));
+
+  function pdfSekmesiAcik() { return $("#sekme-pdf").getAttribute("aria-selected") === "true"; }
+  function butonDurumu() {
+    const hazir = pdfSekmesiAcik() ? !!secilenDosya : $("#metin-girdi").value.trim().length > 0;
+    $("#denetle-btn").disabled = !hazir;
+  }
+  $("#metin-girdi").addEventListener("input", butonDurumu);
+
+  /* ---------- Dosya seçme / sürükle-bırak ---------- */
+  function dosyaAyarla(dosya) {
+    hataGizle();
+    if (!dosya) return;
+    if (!/\.pdf$/i.test(dosya.name)) { secilenDosya = null; $("#secili").classList.add("gizli"); hataGoster("Yalnızca PDF dosyaları yüklenebilir."); butonDurumu(); return; }
+    if (dosya.size > MAX_MB * 1048576) {
+      secilenDosya = null; $("#secili").classList.add("gizli");
+      hataGoster("Dosya çok büyük (en fazla " + MAX_MB + " MB). Seçtiğiniz dosya " + (dosya.size / 1048576).toFixed(0) + " MB.");
+      butonDurumu(); return;
+    }
+    secilenDosya = dosya;
+    const mb = (dosya.size / 1048576).toFixed(1).replace(".", ",");
+    $("#secili").textContent = "Seçilen dosya: " + dosya.name + " (" + mb + " MB)";
+    $("#secili").classList.remove("gizli");
+    butonDurumu();
+  }
+  $("#pdf-girdi").addEventListener("change", (e) => dosyaAyarla(e.target.files[0]));
+  const alan = $("#surukleme");
+  alan.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#pdf-girdi").click(); } });
+  ["dragenter", "dragover"].forEach((o) => alan.addEventListener(o, (e) => { e.preventDefault(); alan.classList.add("surukle"); }));
+  ["dragleave", "drop"].forEach((o) => alan.addEventListener(o, (e) => { e.preventDefault(); alan.classList.remove("surukle"); }));
+  alan.addEventListener("drop", (e) => dosyaAyarla(e.dataTransfer.files[0]));
+
+  /* ---------- Gönderme ---------- */
+  function hataGoster(m) { const h = $("#hata"); h.textContent = m; h.classList.remove("gizli"); }
+  function hataGizle() { $("#hata").classList.add("gizli"); }
+  function bekle(ac) { $("#bekle").classList.toggle("acik", ac); $("#denetle-btn").disabled = ac || $("#denetle-btn").disabled; }
+
+  function ilerlemeGoster(yazi, yuzde) {
+    $("#bekle-asama").textContent = yazi + (typeof yuzde === "number" ? "  (%" + yuzde + ")" : "");
+    $("#bekle-cubuk").style.width = Math.max(0, Math.min(100, yuzde || 0)) + "%";
+  }
+
+  // Dosya yüklenirken yüzde göstermek için XMLHttpRequest kullanılır.
+  function yukleGonder(url, govde, json) {
+    return new Promise((coz, reddet) => {
+      const x = new XMLHttpRequest();
+      x.open("POST", url);
+      if (json) x.setRequestHeader("Content-Type", "application/json");
+      x.upload.onprogress = (e) => {
+        if (e.lengthComputable) ilerlemeGoster("Dosya yükleniyor", Math.round(e.loaded / e.total * 100));
+      };
+      x.onload = () => {
+        let veri;
+        try { veri = JSON.parse(x.responseText); } catch (_) { veri = { hata: "Sunucudan beklenmeyen bir cevap geldi." }; }
+        coz({ ok: x.status >= 200 && x.status < 300, veri });
+      };
+      x.onerror = () => reddet(new TypeError("ağ hatası"));
+      x.send(govde);
+    });
+  }
+
+  // Sunucu analizi arka planda yapar; bitene kadar her saniye durumu sorarız.
+  async function isiTakipEt(isId) {
+    let ardArdaHata = 0;
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 1000));
+      let r, v;
+      try { r = await fetch("/durum/" + isId); v = await r.json(); ardArdaHata = 0; }
+      catch (_) { if (++ardArdaHata >= 8) throw new TypeError("ağ hatası"); continue; }
+      if (!r.ok) throw new Error(v.hata || "Bu işlem bulunamadı.");
+      if (v.durum === "hata") throw new Error(v.hata || "Bir hata oluştu.");
+      if (v.durum === "bitti") return v.sonuc;
+      ilerlemeGoster(v.asama, v.yuzde);
+    }
+  }
+
+  async function gonder(url, govde, json) {
+    hataGizle(); bekle(true); ilerlemeGoster("Hazırlanıyor…", 0);
+    try {
+      const { ok, veri } = await yukleGonder(url, govde, json);
+      if (!ok || veri.hata) throw new Error(veri.hata || "Bir hata oluştu.");
+      sonuc = await isiTakipEt(veri.is_id);
+      filtre = "TUMU"; arama = ""; gosterilen = SAYFA_BOYUTU;
+      $("#ara").value = "";
+      sonuclariGoster();
+    } catch (e) {
+      hataGoster(e instanceof TypeError ? "Site şu anda kapalı. Masaüstündeki Ders Kitabı Denetleyici kısayoluna çift tıklayın, sonra yeniden deneyin." : e.message);
+    } finally { bekle(false); butonDurumu(); }
+  }
+
+  $("#denetle-btn").addEventListener("click", () => {
+    const tdk = $("#tdk-sec").checked;
+    if (pdfSekmesiAcik()) {
+      const f = new FormData();
+      f.append("pdf", secilenDosya);
+      f.append("tdk", tdk ? "1" : "0");
+      gonder("/analiz", f, false);
+    } else {
+      gonder("/analiz-metin", JSON.stringify({ metin: $("#metin-girdi").value, tdk }), true);
+    }
+  });
+
+  /* ---------- Sonuçları çizme ---------- */
+  function vurgula(hedef, metin, kelime) {
+    const m = trKucuk(metin), k = trKucuk(kelime);
+    const i = k && m.length === metin.length ? m.indexOf(k) : -1;
+    if (i < 0) { hedef.textContent = metin; return; }
+    const isaret = el("mark", null, metin.slice(i, i + kelime.length));
+    hedef.append(document.createTextNode(metin.slice(0, i)), isaret, document.createTextNode(metin.slice(i + kelime.length)));
+  }
+
+  function kartYap(b) {
+    const k = KRITER[b.kriter] || { ad: b.kriter, sinif: "nokta" };
+    const kart = el("article", "bulgu " + k.sinif);
+    const ust = el("div", "bulgu-ust");
+    ust.append(el("span", "rozet " + k.sinif, k.ad), el("span", "konum", "Sayfa " + b.sayfa + " · Paragraf " + b.paragraf));
+    if (b.adet > 1) ust.append(el("span", "konum", "· " + b.adet + " kez geçti (sayfa " + b.sayfalar + ")"));
+    const oneri = el("p", "oneri");
+    oneri.append(el("strong", null, "Öneri: "), document.createTextNode(b.oneri));
+    const baglam = el("p", "baglam");
+    vurgula(baglam, b.baglam, b.kelime);
+    kart.append(ust, el("div", "kelime", b.kelime), el("p", "aciklama", b.aciklama), oneri, baglam);
+    return kart;
+  }
+
+  function filtreli() {
+    const q = trKucuk(arama.trim());
+    return sonuc.bulgular.filter((b) =>
+      (filtre === "TUMU" || b.kriter === filtre) &&
+      (!q || trKucuk([b.kelime, b.aciklama, b.oneri, b.baglam].join(" ")).includes(q)));
+  }
+
+  function listeyiCiz() {
+    const liste = $("#liste"); liste.replaceChildren();
+    const hepsi = filtreli();
+    if (!hepsi.length) {
+      liste.append(el("div", "bos", sonuc.toplam_bulgu === 0 ? "Hata bulunamadı. Metin temiz görünüyor." : "Bu filtreye uyan sonuç yok."));
+    } else {
+      hepsi.slice(0, gosterilen).forEach((b) => liste.append(kartYap(b)));
+    }
+    $("#daha").classList.toggle("gizli", hepsi.length <= gosterilen);
+    $("#daha-btn").textContent = "Daha fazla göster (" + (hepsi.length - gosterilen) + " sonuç daha)";
+  }
+
+  function chipleriCiz() {
+    const kap = $("#chipler"); kap.replaceChildren();
+    const secenekler = [["TUMU", "Tümü", sonuc.toplam_bulgu],
+      ["ARGO", "Argo", sonuc.sayilar.ARGO], ["YAZIM", "Yazım", sonuc.sayilar.YAZIM], ["NOKTALAMA", "Noktalama", sonuc.sayilar.NOKTALAMA]];
+    secenekler.forEach(([anahtar, ad, sayi]) => {
+      const c = el("button", "chip", ad + " (" + sayi + ")");
+      c.type = "button"; c.setAttribute("aria-pressed", String(filtre === anahtar));
+      c.addEventListener("click", () => { filtre = anahtar; gosterilen = SAYFA_BOYUTU; chipleriCiz(); listeyiCiz(); });
+      kap.append(c);
+    });
+  }
+
+  function sonuclariGoster() {
+    const s = sonuc;
+    $("#sonuc-dosya").textContent = s.dosya;
+
+    const durum = $("#durum");
+    const mesajlar = {
+      kullanildi: ["TDK sözlüğü kullanıldı: argo ve yazım denetimi TDK verisine dayanıyor.", false],
+      kismen: ["TDK kelimelerin bir kısmına cevap vermedi. Cevap gelenlerde TDK, diğerlerinde bilgisayardaki sözlük ve listeler kullanıldı.", true],
+      ulasilamadi: ["TDK'ye ulaşılamadı. Sonuçlar bilgisayardaki sözlük ve listelerle üretildi; TDK doğrulaması yapılmadı.", true],
+      kapali: ["TDK kapalı. Sonuçlar bilgisayardaki sözlük ve listelerle üretildi.", true],
+      beklenmeyen: ["TDK'den beklenmeyen cevaplar geldi. Sonuçlar bilgisayardaki sözlük ve listelerle üretildi; TDK doğrulaması yapılmadı.", true],
+    };
+    const [yazi, uyari] = mesajlar[s.tdk_durum] || mesajlar.kapali;
+    durum.textContent = yazi; durum.classList.toggle("uyari", uyari);
+
+    const ozet = $("#ozet"); ozet.replaceChildren();
+    [["", s.paragraf_sayisi, "taranan paragraf (" + s.sayfa_sayisi + " sayfa)"], ["", s.toplam_bulgu, "toplam bulgu"],
+     ["argo", s.sayilar.ARGO, "argo / uygunsuz"], ["yazim", s.sayilar.YAZIM, "yazım hatası"],
+     ["nokta", s.sayilar.NOKTALAMA, "noktalama"], ["", s.sure + " sn", "süre"]].forEach(([sinif, sayi, ad]) => {
+      const kutu = el("div", sinif); kutu.append(el("b", null, String(sayi)), el("span", null, ad)); ozet.append(kutu);
+    });
+
+    const adlar = s.ozel_isimler || [];
+    $("#ozel-baslik").textContent = "Ayrılan özel isimler (" + adlar.length + "): yazım hatası sayılmadı";
+    $("#ozel-liste").textContent = adlar.map(([ad, adet]) => ad + " (" + adet + ")").join(", ");
+    $("#ozel-kutu").classList.toggle("gizli", !adlar.length);
+
+    $("#indir-csv").href = "/indir/" + s.id + "/csv";
+    $("#indir-html").href = "/indir/" + s.id + "/html";
+    const kes = $("#kesildi");
+    kes.textContent = "Ekranda ilk " + s.bulgular.length + " bulgu gösteriliyor; hepsi indirilen raporda yer alır.";
+    kes.classList.toggle("gizli", !s.kesildi);
+
+    chipleriCiz(); listeyiCiz();
+    const bolum = $("#sonuclar"); bolum.style.display = "block";
+    bolum.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  $("#ara").addEventListener("input", (e) => { arama = e.target.value; gosterilen = SAYFA_BOYUTU; listeyiCiz(); });
+  $("#daha-btn").addEventListener("click", () => { gosterilen += SAYFA_BOYUTU; listeyiCiz(); });
+
+  butonDurumu();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Sözlüklerde bulunmayan ama doğru olan kelimeler (kök hâliyle, küçük harfle). Her satıra bir tane.
+# Bu köklerle başlayan kelimeler yazım hatası sayılmaz, o yüzden kısa kök yazma.
+
+# --- İstiklal Marşı'ndaki özgün yazımlar ---
+medeniyyet
+hürriyyet
+ebediyyen
+serhad
+vecd
+
+# --- Sözlüklerde eksik kalan kelimeler ---
+ipucu
+nakış
+karekod
+kıpır
+şırıl
+pırıl

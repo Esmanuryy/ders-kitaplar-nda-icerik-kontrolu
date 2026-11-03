@@ -32,7 +32,7 @@ ARGO_ETIKETLERI = ("argo", "kaba")
 
 
 class TDK:
-    def __init__(self, onbellek_yolu: Path, calisan: int = 8, bekleme: float = 0.05):
+    def __init__(self, onbellek_yolu: Path, calisan: int = 2, bekleme: float = 0.3):
         self.yol = Path(onbellek_yolu)
         self.calisan = calisan
         self.bekleme = bekleme
@@ -59,9 +59,9 @@ class TDK:
         """(durum, veri) döner. durum: 'ok' | 'yok' | 'hata'."""
         if self.kapali:
             return "hata", None
-        for deneme in range(2):
+        for deneme in range(2):      # TDK yoğun istekte yavaşlıyor veya JSON dışı cevap veriyor: bekleyip tekrar dene
             try:
-                r = self.oturum.get(url, params={"ara": kelime}, timeout=5)
+                r = self.oturum.get(url, params={"ara": kelime}, timeout=8)
                 if r.status_code != 200:
                     raise requests.RequestException(f"HTTP {r.status_code}")
                 veri = r.json()
@@ -72,14 +72,28 @@ class TDK:
                 if not veri:
                     return "yok", None
                 return "ok", veri
+            except requests.Timeout:
+                break                # cevap vermiyorsa tekrar deneyip kullanıcıyı bekletme
             except (requests.RequestException, ValueError):
-                time.sleep(0.5 * (deneme + 1))
+                time.sleep(1.5 * (deneme + 1))
         self.hata_sayisi += 1
         self.ust_uste_hata += 1
-        if self.ust_uste_hata >= 3:
+        if self.ust_uste_hata >= 5 or self.hata_sayisi >= 15:
             self.kapali = True
             print("UYARI: TDK'ye ulaşılamıyor; bu çalıştırmada TDK devre dışı bırakıldı.")
         return "hata", None
+
+    def baglanti_dene(self) -> bool:
+        """TDK cevap veriyor mu? Vermiyorsa kapatır: önbellek ve yerel sözlükle hemen devam edilir."""
+        try:
+            r = self.oturum.get(GTS_URL, params={"ara": "kitap"}, timeout=6)
+            if r.status_code == 200 and r.json():
+                return True
+        except (requests.RequestException, ValueError):
+            pass
+        self.kapali = True
+        print("UYARI: TDK cevap vermiyor; önbellek ve yerel sözlük kullanılacak.")
+        return False
 
     # ------------------------------------------------------------------
     # Güncel Türkçe Sözlük: kelime var mı, argo/kaba mı?
@@ -104,6 +118,8 @@ class TDK:
             if anahtar in self.onbellek:
                 return self.onbellek[anahtar]
 
+        if self.kapali:           # TDK devre dışıysa her kelimede boşuna bekleme
+            return None
         time.sleep(self.bekleme)
         durum, veri = self._getir(GTS_URL, kelime)
         if durum == "hata":
@@ -164,9 +180,8 @@ class TDK:
         eksik = [k for k in dict.fromkeys(kelimeler) if f"gts:{k}" not in self.onbellek]
         if not eksik:
             return
-        # Önce tek kelimeyle bağlantıyı dene; olmuyorsa toplu sorguya hiç girme
-        self.sozluk(eksik[0])
-        if self.kapali or self.ust_uste_hata:
+        # Önce bağlantıyı dene; olmuyorsa toplu sorguya hiç girme
+        if not self.baglanti_dene():
             return
         if ilerleme:
             print(f"TDK'den {len(eksik)} kelime sorgulanıyor (bir kez yapılır, sonra önbellekten okunur)…")
