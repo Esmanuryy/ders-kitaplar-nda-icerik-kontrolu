@@ -57,4 +57,4 @@ py -3.12 denetleyici.py kitap.pdf --cevrimdisi   # TDK'siz çalıştırır
 - [x] Web arayüzü (ilk sürüm)
 
 ## Geliştirici
-Esmanur Yılmaz - 24130721
+Esmanur Yılmaz - 24130781
