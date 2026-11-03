@@ -2,4 +2,5 @@ pymupdf
 zemberek-python
 requests
 flask
+spylls
 setuptools<81

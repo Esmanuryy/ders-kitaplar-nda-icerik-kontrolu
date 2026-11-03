@@ -1,0 +1,1 @@
+Türkçe Hunspell sözlüğü: https://github.com/tdd-ai/hunspell-tr (MPL-2.0, bkz. LICENSE)

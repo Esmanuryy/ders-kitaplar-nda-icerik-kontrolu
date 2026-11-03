@@ -29,6 +29,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import pymupdf  # PyMuPDF
+from spylls.hunspell import Dictionary
 from zemberek import TurkishMorphology
 
 from tdk import TDK
@@ -246,9 +247,19 @@ def yanlis_sozlugu_oku(yol: Path) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # 4) Kriter 2: Yazım denetimi (Zemberek)
 # ---------------------------------------------------------------------------
+SAPKASIZ = str.maketrans("âîûÂÎÛ", "aiuAIU")
+
+
 class YazimDenetcisi:
     def __init__(self):
         self.morfoloji = TurkishMorphology.create_with_defaults()
+        # Zemberek bazı yanlış kelimeleri de geçerli sayıyor (kelimler, sekilde). Yazımın asıl kaynağı Hunspell sözlüğü.
+        self.hunspell = Dictionary.from_files(str(KLASOR / "sozluk" / "tr_TR"))
+
+    @lru_cache(maxsize=50000)
+    def sozlukte_var_mi(self, kelime: str) -> bool:
+        """Kelime Hunspell Türkçe sözlüğüne göre doğru yazılmış mı?"""
+        return self.hunspell.lookup(kelime) or self.hunspell.lookup(kelime.translate(SAPKASIZ))
 
     @lru_cache(maxsize=50000)
     def _cozumler(self, kelime: str) -> tuple:
@@ -275,9 +286,9 @@ class YazimDenetcisi:
         if kelime in ("var", "yok", "değil"):
             return True
         cozumler = self._cozumler(kelime)
-        if any(tr_kucuk(c[0]) == kelime for c in cozumler):
+        if any(tr_kucuk(c[0]) == kelime or c[1] == "PrimaryPos.Pronoun" for c in cozumler):
             return False
-        return any(":Cop" in c[3] or (c[1] == "PrimaryPos.Verb" and "→" not in c[3] and re.search(
+        return any(":Cop" in c[3] or (c[1] == "PrimaryPos.Verb" and not re.search(r"→(?:Noun|Adj|Adv)", c[3]) and re.search(
             r"[+:](?:Past|Narr|Prog1|Prog2|Aor|Fut|Cond|Neces|Opt)\b|Imp\+\w+:A2pl", c[3])) for c in cozumler)
 
     def sozluk_disi_serbest_mi(self, kelime: str) -> bool:
@@ -309,7 +320,7 @@ class YazimDenetcisi:
         if sum(len(s) > 1 for s in secenekler) <= 6:
             for kombinasyon in itertools.product(*secenekler):
                 aday = "".join(kombinasyon)
-                if aday != kelime and self.gecerli_mi(aday):
+                if aday != kelime and self.sozlukte_var_mi(aday):
                     adaylar.append(aday)
 
         # (b) Tek harflik düzenlemeler (silme, ekleme, değiştirme, yer değiştirme).
@@ -321,7 +332,7 @@ class YazimDenetcisi:
             degis = [s + h + k[1:] for s, k in bolumler if k for h in TR_ALFABE]
             ekle = [s + h + k for s, k in bolumler for h in TR_ALFABE]
             for aday in dict.fromkeys(silme + yer + degis + ekle):
-                if aday != kelime and self.gecerli_mi(aday):
+                if aday != kelime and self.sozlukte_var_mi(aday):
                     adaylar.append(aday)
                     if len(adaylar) >= 6:
                         break
@@ -503,6 +514,17 @@ def noktalama_bul(sayfa, par_no, metin, denetci):
             and denetci.yuklem_olabilir_mi(tr_kucuk(son_cumle[-1]))):
         ekle(son_cumle[-1], "Cümle sonunda noktalama işareti yok", "Cümlenin sonuna nokta koyun",
              len(metin) - len(son_cumle[-1]), len(metin))
+
+    # Virgülle biten cümle
+    if metin.endswith(",") and len(son_cumle) >= 4 and denetci.yuklem_olabilir_mi(tr_kucuk(son_cumle[-1])):
+        ekle(",", "Cümle virgülle bitmiş", "Virgül yerine nokta koyun", len(metin) - 1, len(metin))
+
+    # İki cümle arasında unutulan nokta: yüklemden sonra büyük harfle yeni cümle başlıyor (gitti Sonra)
+    for m in re.finditer(rf"(?<![{HARFLER}])([{KUCUK_HARF}]{{3,}}) ([{BUYUK_HARF}][{KUCUK_HARF}]+)(?![{HARFLER}'’])", tarama):
+        onceki, sonraki = m.group(1), tr_kucuk(m.group(2))
+        if (not re.match(rf"[ ]+[{BUYUK_HARF}]", tarama[m.end():]) and denetci.yuklem_olabilir_mi(onceki) and denetci.gecerli_mi(sonraki) and sonraki not in ISIM_OLABILEN
+                and not any(c[2] == "SecondaryPos.ProperNoun" for c in denetci._cozumler(sonraki))):
+            ekle(onceki, "İki cümle arasında nokta eksik", "Yüklemden sonra nokta koyun", m.start(), m.end())
 
     # Arka arkaya tekrar eden kelime: "bu bu", "ve ve"
     kelimeler = list(KELIME_RE.finditer(tarama))
@@ -753,7 +775,7 @@ def paragraf_denetle(sayfa, par_no, metin, argo, yanlislar, denetci, tdk=None, o
             continue                                                 # Ankara, Ayşe: özel isim
         if buyuk_baslar and govde in belge_ozel:
             continue                                                 # metinde özel isim olarak tespit edildi
-        if (buyuk_baslar or tamami_buyuk) and not denetci.gecerli_mi(kucuk) and ad_soyad_icinde_mi(tarama, m, denetci):
+        if (buyuk_baslar or tamami_buyuk) and not denetci.sozlukte_var_mi(kucuk) and ad_soyad_icinde_mi(tarama, m, denetci):
             continue                                                 # Dr. Gülbike YILDIRIM
 
         # (b) Sözlük denetimi: TDK asıl kaynaktır. Zemberek'in sözlüğü çok geniş olduğu için
@@ -791,15 +813,16 @@ def paragraf_denetle(sayfa, par_no, metin, argo, yanlislar, denetci, tdk=None, o
         if denetci.sozluk_disi_serbest_mi(kucuk):
             continue                                                 # mı, misin, km, kg
 
+        sozlukte = denetci.sozlukte_var_mi(kucuk) or (zemberek_biliyor and not denetci.oneriler(kucuk))
         if tdk_ulasilamadi:
-            hatali = not zemberek_biliyor
+            hatali = not sozlukte
             aciklama = "Sözlükte bulunamadı (TDK kullanılmadı) – olası yazım hatası"
         elif tdk_biliyor:
             hatali, aciklama = False, ""
         else:
-            # Zemberek biliyorsa hata sayılmaz: TDK çekimli kelimeleri ve bazı türemişleri (idi, gruplayınız) madde
-            # olarak içermez. Sözlükte geçerli sayılan yanlışlar (yanlız, herşey) yaygin_yanlislar.txt ile yakalanır.
-            hatali, aciklama = not zemberek_biliyor, "Sözlükte bulunamadı – olası yazım hatası"
+            # TDK çekimli kelimeleri ve bazı türemişleri (idi, gruplayınız) madde olarak içermez; bu yüzden TDK'de
+            # yoksa karar Hunspell sözlüğünündür.
+            hatali, aciklama = not sozlukte, "Sözlükte bulunamadı – olası yazım hatası"
 
         if hatali:
             oneriler = yazim_onerileri(kucuk, denetci, None if tdk_ulasilamadi else tdk)

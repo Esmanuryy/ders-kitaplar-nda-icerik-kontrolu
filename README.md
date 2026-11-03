@@ -45,6 +45,7 @@ py -3.12 denetleyici.py kitap.pdf --cevrimdisi   # TDK'siz çalıştırır
 | `tdk.py` | TDK sözlük servisi istemcisi (önbellek ve hata yönetimiyle) |
 | `argo_listesi.txt` | Argo ve uygunsuz kelime listesi |
 | `yaygin_yanlislar.txt` | Sık yapılan yazım hataları |
+| `sozluk/` | Türkçe Hunspell sözlüğü (yazım denetiminin ana kaynağı) |
 | `izinli_kelimeler.txt` | Sözlükte olmayan ama doğru kelimeler (hata sayılmaz) |
 | `ozel_isimler.txt` | Büyük harfle başlaması gereken özel isimler (ankara → Ankara) |
 | `ornek_pdf_olustur.py` | Hatalı örnek PDF üretir |
