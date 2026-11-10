@@ -17,7 +17,7 @@ from .kelime import BUYUK_DENETIM_UZUNLUK, kelimeleri_denetle, tdk_adaylari
 from .metin import HARFLER, KELIME_RE, KOD_RE, adresleri_ort, kelime_govdesi, tr_kucuk
 from .noktalama import noktalama_bul
 from .ozel_isim import ozel_isimleri_ayir
-from .pdf import BOLUNME, metin_paragraflari, pdf_paragraflari
+from .pdf import BOLUNME, SUSLU, metin_paragraflari, pdf_paragraflari
 from .rapor import Bulgu, bulgulari_birlestir
 from .sozluk import Sozluk, liste_oku, yanlis_sozlugu_oku
 from .tdk import TDK, OnbellektenTDK, tdk_guvenilir_mi, toplu_sorgula
@@ -88,6 +88,19 @@ class Denetleyici:
             return birlesik if self.sozluk.dogru_yazilmis_mi(tr_kucuk(birlesik)) else m.group(0)
         return re.sub(rf"([{HARFLER}]+)- (\d{{1,3}} )?([a-zçğıöşü]+)", satir_numarali, metin)
 
+    def suslu_basliklari_ayikla(self, paragraflar) -> list:
+        """Harf harf yazılmış süslü başlıklar (OYUN DÜNYASI) bütün kelimeleri sözlükte bulunursa denetlenir.
+        Harfleri eksik ya da karışık okunduysa ("REN EÇRME") yanlış hata üretmemesi için atlanır."""
+        sonuc = []
+        for s, n, m in paragraflar:
+            if SUSLU in m:
+                kelimeler = [tr_kucuk(k) for k in KELIME_RE.findall(m.replace(SUSLU, ""))]
+                if not all(len(k) < 2 or self.sozluk.dogru_yazilmis_mi(kelime_govdesi(k)) for k in kelimeler):
+                    continue
+                m = m.replace(SUSLU, "")
+            sonuc.append((s, n, m))
+        return sonuc
+
     def paragraf_denetle(self, sayfa, par_no, metin, tdk=None, belge_ozel=frozenset()) -> list[Bulgu]:
         """Bir paragrafı üç kritere göre denetler: argo, yazım (büyük/küçük harf dahil), noktalama."""
         if KOD_RE.search(metin):                     # kod ve formül satırları denetlenmez
@@ -128,7 +141,8 @@ class Denetleyici:
         """Paragrafların tamamını denetler. ilerleme(aşama, yüzde) ile durum bildirilir."""
         basla = time.time()
         ilerleme = ilerleme or (lambda asama, yuzde: None)
-        paragraflar = [(s, n, self.bolunmus_kelimeleri_birlestir(m)) for s, n, m in paragraflar]
+        paragraflar = self.suslu_basliklari_ayikla(
+            [(s, n, self.bolunmus_kelimeleri_birlestir(m)) for s, n, m in paragraflar])
         sonuc = Sonuc(dosya_adi, sayfa_sayisi=len({p[0] for p in paragraflar}), paragraf_sayisi=len(paragraflar))
 
         tdk = None
