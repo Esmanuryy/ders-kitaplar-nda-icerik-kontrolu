@@ -11,7 +11,7 @@ Kullandığımız iki uç nokta:
   * Çok sayıda kelimeyi paralel (thread) sorgulayabilir.
 
 NOT: TDK'nin JSON alan adları site güncellenince değişebilir. Bir şey çalışmazsa:
-        python tdk.py kelime
+        python -m denetim.tdk kelime
      komutu ham cevabı ekrana basar; alan adlarını oradan kontrol edebilirsin.
 """
 
@@ -19,7 +19,7 @@ import json
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import requests
@@ -175,29 +175,69 @@ class TDK:
     # ------------------------------------------------------------------
     # Toplu ön yükleme ve kaydetme
     # ------------------------------------------------------------------
-    def on_yukle(self, kelimeler, ilerleme=True):
-        """Önbellekte olmayan kelimeleri paralel olarak TDK'den çeker."""
-        eksik = [k for k in dict.fromkeys(kelimeler) if f"gts:{k}" not in self.onbellek]
-        if not eksik:
-            return
-        # Önce bağlantıyı dene; olmuyorsa toplu sorguya hiç girme
-        if not self.baglanti_dene():
-            return
-        if ilerleme:
-            print(f"TDK'den {len(eksik)} kelime sorgulanıyor (bir kez yapılır, sonra önbellekten okunur)…")
-        with ThreadPoolExecutor(max_workers=self.calisan) as havuz:
-            list(havuz.map(self.sozluk, eksik))
-        self.kaydet()
-
     def kaydet(self):
         with self.kilit:
             self.yol.write_text(json.dumps(self.onbellek, ensure_ascii=False, indent=0), encoding="utf-8")
 
 
+class OnbellektenTDK:
+    """Toplu sorgudan sonra denetim sırasında TDK'ye tekrar tekrar istek atmamak için yalnızca önbelleği okur."""
+
+    def __init__(self, tdk):
+        self.tdk = tdk
+
+    def sozluk(self, kelime):
+        return self.tdk.onbellek.get(f"gts:{kelime}")
+
+    def sozluk_canli(self, kelime):
+        return self.tdk.sozluk(kelime)               # öneri adaylarını doğrulamak için (az sayıda istek)
+
+    def yazim_onerisi(self, kelime):
+        return self.tdk.yazim_onerisi(kelime)
+
+
+# TDK'nin cevapları bozuksa (site değişmiş, yanlış yanıt vb.) bütün kelimeler "hatalı" çıkmasın diye
+# her çalıştırmada bu çok yaygın kelimelerin TDK'de bulunup bulunmadığına bakılır.
+KANARYA_KELIMELER = ("okul", "kitap", "ders", "insan")
+
+
+def tdk_guvenilir_mi(tdk, adaylar) -> bool:
+    """TDK cevapları beklenen biçimde mi? Değilse TDK'ye dayalı denetim yapılmaz."""
+    cevaplar = [c for c in (tdk.onbellek.get(f"gts:{k}") for k in adaylar) if c]
+    if len(cevaplar) >= 50 and sum(1 for c in cevaplar if not c["var"]) / len(cevaplar) > 0.35:
+        return False                                     # kelimelerin çoğu "yok" çıktı: şüpheli
+    kanarya = [c for c in map(tdk.sozluk, KANARYA_KELIMELER) if c is not None]
+    return not kanarya or sum(1 for c in kanarya if c["var"]) >= min(3, len(kanarya))
+
+
+def toplu_sorgula(tdk, kelimeler, ilerleme=None) -> float:
+    """Önbellekte olmayan kelimeleri TDK'ye paralel sorar. Cevapsız kalan kelimelerin oranını döndürür.
+    TDK cevap vermiyorsa hemen vazgeçer; denetim önbellek ve yerel sözlükle sürer."""
+    def cevapsiz_orani():
+        return sum(1 for k in kelimeler if f"gts:{k}" not in tdk.onbellek) / max(1, len(kelimeler))
+
+    eksik = [k for k in sorted(kelimeler) if f"gts:{k}" not in tdk.onbellek]
+    if not eksik or not tdk.baglanti_dene():
+        return cevapsiz_orani()
+    bitti = 0
+    with ThreadPoolExecutor(max_workers=tdk.calisan) as havuz:
+        for _ in as_completed([havuz.submit(tdk.sozluk, k) for k in eksik]):
+            bitti += 1
+            if ilerleme and (bitti % 25 == 0 or bitti == len(eksik)):
+                ilerleme(bitti, len(eksik))
+            if bitti % 200 == 0:              # yarıda kesilirse alınan cevaplar kaybolmasın
+                tdk.kaydet()
+            if tdk.kapali:                    # TDK yanıt vermiyor: kalan istekleri iptal et
+                havuz.shutdown(wait=False, cancel_futures=True)
+                break
+    tdk.kaydet()
+    return cevapsiz_orani()
+
+
 # Komut satırından deneme:  python tdk.py salak
 if __name__ == "__main__":
     kelime = sys.argv[1] if len(sys.argv) > 1 else "okul"
-    t = TDK(Path("tdk_onbellek_deneme.json"))
+    t = TDK(Path(__file__).parent.parent / "veri" / "tdk_onbellek_deneme.json")
     for ad, url in (("GTS", GTS_URL), ("YAZIM", YAZIM_URL)):
         durum, veri = t._getir(url, kelime)
         print(f"--- {ad} ({durum}) ---")

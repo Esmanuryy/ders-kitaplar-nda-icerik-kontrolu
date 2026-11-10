@@ -1,61 +1,96 @@
-# Ders Kitaplarında İçerik ve Tutarlılık Hatalarının Otomatik Tespiti
+# Ders Kitabı Denetleyici
 
-Yazılım Geliştirme I dersi dönem projesi.
+Ders kitaplarında içerik ve tutarlılık hatalarının otomatik tespiti. Yazılım Geliştirme I dersi dönem projesi.
 
-PDF formatındaki ders kitaplarından metin çıkarır ve üç kritere göre olası hataları bulur.
-Bulunan her hata için sayfa ve paragraf numarası gösterilir.
+PDF formatındaki bir ders kitabını okur. Argo ifadeleri, yazım hatalarını ve noktalama hatalarını sayfa numarası, açıklama ve düzeltme önerisiyle listeler.
 
-## Kriterler
-1. **Argo / uygunsuz ifade:** TDK Güncel Türkçe Sözlük'teki "argo/kaba" etiketi ve `argo_listesi.txt`
-2. **Yazım hatası:** TDK Sözlük, TDK Yazım Kılavuzu, Zemberek, `yaygin_yanlislar.txt` ve büyük/küçük harf kuralları (cümle başı, özel isimler, kelime ortasında büyük harf)
-3. **Noktalama / tekrar:** TDK Yazım Kılavuzu kurallarına dayalı kural tabanlı denetim
+## Neleri bulur?
 
-Her kelime tek tek taranır; anlamına bakılmaz, yazılışı ve sözlük kaydı incelenir. Özel isimler ayrılır ve yazım hatası sayılmaz (`Newton'un`, `Ankara`, metinde tekrar eden `Pisagor`); listeleri site ve HTML raporda gösterilir. Kod ve formül satırları denetlenmez.
+| Kriter | Nasıl bakılır | Örnek |
+|---|---|---|
+| **Argo / uygunsuz ifade** | TDK Güncel Türkçe Sözlük'teki "argo" ve "kaba" etiketleri, argo listesi | salak, kanka |
+| **Yazım** | Hunspell Türkçe sözlüğü, Zemberek, TDK, sık yapılan yanlışlar listesi | guzel → güzel, herkez → herkes, bir kaç → birkaç |
+| **Büyük/küçük harf, kesme işareti** | Yazım kuralları | ankarada → Ankara'da, okul'da → okulda |
+| **Noktalama** | TDK Yazım Kılavuzu'na dayalı kurallar | gitti.Sonra, kalem ,silgi, anladın mı. |
+
+- Her kelime tek tek taranır. Anlamına bakılmaz; kelimenin yazılışına ve sözlük kaydına bakılır.
+- Özel isimler (Newton, Ankara, Dr. Gülbike YILDIRIM) ayrılır, hata sayılmaz ve ayrı listelenir.
+- Aynı hata kitapta defalarca geçse de bir kez listelenir; kaç kez ve hangi sayfalarda geçtiği yazılır.
 
 ## Kurulum
+
 Python 3.12 gerekir (Zemberek yeni Python sürümleriyle uyumsuzdur).
 
 ```
 py -3.12 -m pip install -r requirements.txt
 ```
 
-## Web sitesi (arayüz)
-En kolay yol: `Siteyi Ac.bat` dosyasına (ya da masaüstündeki kısayola) çift tıkla. Site başlar ve tarayıcıda kendiliğinden açılır; kapatmak için açılan siyah pencereyi kapat.
+## Kullanım
+
+**Web sitesi:** `Siteyi Ac.bat` dosyasına (ya da masaüstündeki kısayola) çift tıklayın. Site açılır ve tarayıcıda kendiliğinden gösterilir. Kapatmak için siyah pencereyi kapatın.
 
 Komut satırından açmak için:
 ```
 py -3.12 app.py
 ```
-Sonra tarayıcıda `http://127.0.0.1:5000` adresini aç. PDF yükle veya metin yapıştır, sonuçları filtrele, CSV/HTML olarak indir. Uygulama PDF dosyaları için sabit bir boyut sınırı koymaz; sunucu, disk alanı veya bağlantı kısıtları yine geçerli olabilir.
+Adres: `http://127.0.0.1:5000`
 
-## Komut satırı kullanımı
+**Komut satırı:**
 ```
-py -3.12 ornek_pdf_olustur.py          # deneme PDF'i üretir (isteğe bağlı)
-py -3.12 denetleyici.py ornek.pdf      # denetler
-py -3.12 denetleyici.py kitap.pdf --cevrimdisi   # TDK'siz çalıştırır
+py -3.12 denetle.py kitap.pdf                 # TDK ile
+py -3.12 denetle.py kitap.pdf --cevrimdisi    # TDK'ye bağlanmadan
 ```
 Çıktı: `rapor.csv` ve `rapor.html`
 
-## Dosyalar
-| Dosya | Açıklama |
-|---|---|
-| `denetleyici.py` | Ana program |
-| `app.py` | Web sitesi sunucusu (Flask) |
-| `templates/index.html` | Web sitesinin sayfası |
-| `tdk.py` | TDK sözlük servisi istemcisi (önbellek ve hata yönetimiyle) |
-| `argo_listesi.txt` | Argo ve uygunsuz kelime listesi |
-| `yaygin_yanlislar.txt` | Sık yapılan yazım hataları |
-| `sozluk/` | Türkçe Hunspell sözlüğü (yazım denetiminin ana kaynağı) |
-| `izinli_kelimeler.txt` | Sözlükte olmayan ama doğru kelimeler (hata sayılmaz) |
-| `ozel_isimler.txt` | Büyük harfle başlaması gereken özel isimler (ankara → Ankara) |
-| `ornek_pdf_olustur.py` | Hatalı örnek PDF üretir |
-| `Siteyi Ac.bat` | Çift tıklayınca siteyi başlatıp tarayıcıda açar |
+**Örnek PDF:** `ornek_kitap.pdf` içinde bilerek bırakılmış hatalar var. Yeniden üretmek için: `py -3.12 ornek_pdf_olustur.py`
 
-## Durum
-- [x] PDF'ten metin çıkarma, üç kriter, rapor çıktısı
-- [x] TDK modülü (ilk sürüm)
-- [ ] TDK verisinin gerçek verilerle doğrulanması
-- [x] Web arayüzü (ilk sürüm)
+## Proje yapısı
+
+```
+app.py                  Web sitesi (Flask)
+denetle.py              Komut satırı
+denetim/                Denetim kodu
+  denetleyici.py          Hepsini birleştiren Denetleyici sınıfı
+  pdf.py                  PDF'ten paragraf çıkarma (bozuk harf, sütun, tireleme düzeltmeleri)
+  kelime.py               Argo ve yazım denetimi
+  buyuk_kucuk.py          Büyük / küçük harf hataları
+  noktalama.py            Noktalama ve tekrar kuralları
+  ozel_isim.py            Özel isimleri ayırma
+  sozluk.py               Zemberek ve Hunspell
+  tdk.py                  TDK sözlük istemcisi (önbellekli)
+  metin.py                Türkçe harf ve kelime yardımcıları
+  rapor.py                Bulgu kaydı, CSV ve HTML rapor
+veri/                   Kelime listeleri
+  argo_listesi.txt        Argo ve uygunsuz kelimeler
+  yaygin_yanlislar.txt    Sık yapılan yazım yanlışları (yanlış=doğru)
+  ozel_isimler.txt        Büyük harfle başlaması gereken özel isimler
+  izinli_kelimeler.txt    Sözlükte olmayan ama doğru kelimeler
+sozluk/                 Türkçe Hunspell sözlüğü
+templates/, static/     Sitenin sayfası, görünümü ve davranışı
+testler/                Otomatik testler
+```
+
+## Testler
+
+```
+py -3.12 -m unittest discover -s testler -v
+```
+Hatalı cümlelerde hatanın bulunduğunu, doğru cümlelerde yanlış alarm çıkmadığını ve PDF okumanın doğru çalıştığını kontrol eder.
+
+## Bilinen sınırlar
+
+- Anlam gerektiren hatalar bulunamaz: "bende geldim", "sonra" yerine "sora" gibi.
+- Sözlükte olmayan terimler ve eski kelimeler ("yakantop", "gulam") yazım hatası olarak işaretlenebilir. TDK açıkken bu durum azalır. Doğru olduğu bilinen kelimeler `veri/izinli_kelimeler.txt` dosyasına eklenebilir.
+- Metni PDF'ten bozuk çıkan paragraflar denetlenmez; site bu sayfaları ayrıca bildirir.
+- Taranmış (resim) PDF'ler okunamaz; önce OCR gerekir.
+- TDK sitesi yoğun istekte cevap vermeyebilir. Cevaplar `veri/tdk_onbellek.json` dosyasına kaydedilir; aynı kitabın ikinci taraması çok daha hızlıdır.
+
+## Kaynaklar
+
+- Türkçe Hunspell sözlüğü: [tdd-ai/hunspell-tr](https://github.com/tdd-ai/hunspell-tr) (MPL-2.0, `sozluk/LICENSE`)
+- Argo listesinin bir bölümü: [ooguz/turkce-kufur-karaliste](https://github.com/ooguz/turkce-kufur-karaliste) (CC BY-SA 4.0)
+- Zemberek (zemberek-python), PyMuPDF, spylls, Flask, TDK sözlük servisi (sozluk.gov.tr)
 
 ## Geliştirici
+
 Esmanur Yılmaz - 24130781

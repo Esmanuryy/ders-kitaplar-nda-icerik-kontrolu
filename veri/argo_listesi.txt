@@ -29,7 +29,6 @@ orospu
 kanka
 valla
 vallahi
-bi
 bişey
 yav
 lan

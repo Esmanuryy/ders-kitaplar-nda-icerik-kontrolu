@@ -6,8 +6,8 @@ __pycache__/
 # Programın ürettiği dosyalar
 rapor.csv
 rapor.html
-tdk_onbellek.json
-tdk_onbellek_deneme.json
+veri/tdk_onbellek.json
+veri/tdk_onbellek_deneme.json
 
 # Editör
 .vscode/
