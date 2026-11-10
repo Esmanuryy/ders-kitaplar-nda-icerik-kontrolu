@@ -13,7 +13,7 @@ YAZI_TIPI = "C:/Windows/Fonts/arial.ttf"   # Türkçe karakterli bir yazı tipi 
 SAYFALAR = [
     ("1. ÜNİTE: OKUMA KÜLTÜRÜ", [
         "Kitap okumak insanın hayal dünyasını geliştirir. Herşey kitaplarla başlar ve guzel alışkanlıklar kazandırır.",
-        "Biz Ankarada yaşıyoruz.Her hafta kütüphaneye gidip bir kaç kitap alıyoruz. Kütüphanede sessiz olmak önemlidir.",
+        "Biz Ankarada yaşıyoruz.Her hafta kütüphaneye gidip yanlız kitap okumuyoruz. Kütüphanede sessiz olmak önemlidir.",
         "Öğretmenimiz dün bize bir hikâye okudu ve herkez dikkatle dinledi. Hikâyede Ali'nin salak bir şaka yaptığı anlatılıyordu.",
         "Sınıfımızda kalem,silgi, ve defter her zaman hazır bulunur.. Bu kuralı hepimiz biliyoruz.",
     ]),

@@ -9,7 +9,7 @@ PDF formatındaki bir ders kitabını okur. Argo ifadeleri, yazım hatalarını 
 | Kriter | Nasıl bakılır | Örnek |
 |---|---|---|
 | **Argo / uygunsuz ifade** | TDK Güncel Türkçe Sözlük'teki "argo" ve "kaba" etiketleri, argo listesi | salak, kanka |
-| **Yazım** | Hunspell Türkçe sözlüğü, Zemberek, TDK, sık yapılan yanlışlar listesi | guzel → güzel, herkez → herkes, bir kaç → birkaç |
+| **Yazım** | Hunspell Türkçe sözlüğü, Zemberek, TDK, sık yapılan yanlışlar listesi | guzel → güzel, herkez → herkes, yanlız → yalnız |
 | **Büyük/küçük harf, kesme işareti** | Yazım kuralları | ankarada → Ankara'da, okul'da → okulda |
 | **Noktalama** | TDK Yazım Kılavuzu'na dayalı kurallar | gitti.Sonra, kalem ,silgi, anladın mı. |
 
@@ -79,7 +79,8 @@ Hatalı cümlelerde hatanın bulunduğunu, doğru cümlelerde yanlış alarm ç�
 
 ## Bilinen sınırlar
 
-- Anlam gerektiren hatalar bulunamaz: "bende geldim", "sonra" yerine "sora" gibi.
+- Her kelime kendi başına denetlenir; kelimeler birleştirilip anlam aranmaz. Bu yüzden anlam gerektiren hatalar ("bende geldim", "bir kaç" yerine "birkaç") bulunamaz.
+- Fazladan boşluklar hata sayılmaz.
 - Sözlükte olmayan terimler ve eski kelimeler ("yakantop", "gulam") yazım hatası olarak işaretlenebilir. TDK açıkken bu durum azalır. Doğru olduğu bilinen kelimeler `veri/izinli_kelimeler.txt` dosyasına eklenebilir.
 - Metni PDF'ten bozuk çıkan paragraflar denetlenmez; site bu sayfaları ayrıca bildirir.
 - Taranmış (resim) PDF'ler okunamaz; önce OCR gerekir.

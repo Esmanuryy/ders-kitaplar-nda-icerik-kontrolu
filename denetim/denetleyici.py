@@ -6,6 +6,7 @@ Denetimin tamamını yöneten sınıf. Web sitesi (app.py) ve komut satırı (de
     sonuc.bulgular, sonuc.ozel_adlar, sonuc.okunamayan_sayfalar
 """
 
+import re
 import time
 from collections import Counter
 from dataclasses import dataclass, field
@@ -13,10 +14,10 @@ from pathlib import Path
 
 from .buyuk_kucuk import harf_hatalari_bul
 from .kelime import BUYUK_DENETIM_UZUNLUK, kelimeleri_denetle, tdk_adaylari
-from .metin import KELIME_RE, KOD_RE, adresleri_ort, kelime_govdesi, tr_kucuk
+from .metin import HARFLER, KELIME_RE, KOD_RE, adresleri_ort, kelime_govdesi, tr_kucuk
 from .noktalama import noktalama_bul
 from .ozel_isim import ozel_isimleri_ayir
-from .pdf import metin_paragraflari, pdf_paragraflari
+from .pdf import BOLUNME, metin_paragraflari, pdf_paragraflari
 from .rapor import Bulgu, bulgulari_birlestir
 from .sozluk import Sozluk, liste_oku, yanlis_sozlugu_oku
 from .tdk import TDK, OnbellektenTDK, tdk_guvenilir_mi, toplu_sorgula
@@ -66,6 +67,26 @@ class Denetleyici:
         )
 
     # ------------------------------------------------------------------
+    def bolunmus_kelimeleri_birlestir(self, metin: str) -> str:
+        """Satır sonunda tireyle bölünmüş kelimeyi birleştirir: kita- / plarını -> kitaplarını.
+        İki parça da kendi başına kelimeyse ve birleşince anlamsız oluyorsa (yan yana sütunlardan gelen
+        "konul" + "kurallar", "okuma" + "yazma") birleştirilmez; her kelime kendi başına denetlenir."""
+        def karar(m):
+            sol, sag = m.group(1), m.group(2)
+            if self.sozluk.dogru_yazilmis_mi(tr_kucuk(sol + sag)):
+                return sol + sag
+            if self.sozluk.dogru_yazilmis_mi(tr_kucuk(sol)) and self.sozluk.dogru_yazilmis_mi(tr_kucuk(sag)):
+                return f"{sol}-{sag}"
+            return sol + sag
+        metin = re.sub(rf"([{HARFLER}]+){BOLUNME}([{HARFLER}]+)", karar, metin).replace(BOLUNME, "")
+
+        # Satır başında numara olan metinlerde (şiir, okuma metni) bölünen kelime: "pen- 2 cereden" -> "pencereden".
+        # Yalnızca birleşince doğru bir kelime oluyorsa birleştirilir; "okuma- yazma" olduğu gibi kalır.
+        def satir_numarali(m):
+            birlesik = m.group(1) + m.group(3)
+            return birlesik if self.sozluk.dogru_yazilmis_mi(tr_kucuk(birlesik)) else m.group(0)
+        return re.sub(rf"([{HARFLER}]+)- (\d{{1,3}} )?([a-zçğıöşü]+)", satir_numarali, metin)
+
     def paragraf_denetle(self, sayfa, par_no, metin, tdk=None, belge_ozel=frozenset()) -> list[Bulgu]:
         """Bir paragrafı üç kritere göre denetler: argo, yazım (büyük/küçük harf dahil), noktalama."""
         if KOD_RE.search(metin):                     # kod ve formül satırları denetlenmez
@@ -106,6 +127,7 @@ class Denetleyici:
         """Paragrafların tamamını denetler. ilerleme(aşama, yüzde) ile durum bildirilir."""
         basla = time.time()
         ilerleme = ilerleme or (lambda asama, yuzde: None)
+        paragraflar = [(s, n, self.bolunmus_kelimeleri_birlestir(m)) for s, n, m in paragraflar]
         sonuc = Sonuc(dosya_adi, sayfa_sayisi=len({p[0] for p in paragraflar}), paragraf_sayisi=len(paragraflar))
 
         tdk = None

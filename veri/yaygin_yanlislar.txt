@@ -1,5 +1,5 @@
 # yanlış=doğru  (sık yapılan hatalar; Zemberek bunların bir kısmını "geçerli kelime" sayabildiği için ayrı tutuyoruz)
-# Tek kelimelik yanlışların çekimli hâlleri de otomatik yakalanır:
+# Her satırda tek kelime olur (her kelime ayrı denetlenir). Çekimli hâlleri de otomatik yakalanır:
 #   yanlız=yalnız  yazılırsa  yanlızca -> yalnızca,  herşeyi -> her şeyi  olarak bulunur.
 # Listeyi kendin genişlet (her satıra bir tane).
 
@@ -83,9 +83,3 @@ hakkaten=hakikaten
 ilerki=ileriki
 kütüpane=kütüphane
 matamatik=matematik
-
-# --- Ayrı yazılınca yanlış olanlar (iki kelime birlikte aranır) ---
-bir kaç=birkaç
-bir çok=birçok
-hiç bir=hiçbir
-her hangi=herhangi

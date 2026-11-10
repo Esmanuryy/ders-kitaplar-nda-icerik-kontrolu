@@ -116,6 +116,8 @@ textarea { width: 100%; resize: vertical; padding: 12px 14px; border-radius: 6px
 .kelime { font-size: 1.15rem; font-weight: 700; overflow-wrap: anywhere; }
 .bulgu p { margin: 0; }
 .oneri b { color: var(--iyi); }
+.neden { margin-bottom: 4px !important; }
+.neden b, .oneri b { margin-right: 4px; }
 .baglam { grid-column: 1 / -1; margin-top: 6px !important; padding: 8px 12px; border-radius: 4px; background: var(--zemin); color: var(--soluk); font-size: .92rem; overflow-wrap: anywhere; }
 mark { background: var(--vurgu); color: var(--metin); padding: 0 2px; border-radius: 2px; }
 .bos { text-align: center; padding: 34px 10px; color: var(--iyi); font-weight: 700; }
@@ -132,7 +134,7 @@ mark { background: var(--vurgu); color: var(--metin); padding: 0 2px; border-rad
 .kriter { background: var(--kart); border: 1px solid var(--cizgi); border-top: 4px solid; border-radius: 8px; padding: 16px; }
 .kriter p { margin: 0; color: var(--soluk); font-size: .93rem; }
 .kriter.argo { border-top-color: var(--argo); } .kriter.yazim { border-top-color: var(--yazim); } .kriter.nokta { border-top-color: var(--nokta); }
-footer { margin-top: 44px; padding-top: 18px; padding-bottom: 30px; border-top: 1px solid var(--cizgi); color: var(--soluk); font-size: .9rem; }
+.bolum:last-child { margin-bottom: 48px; }
 
 /* ---------- Telefon ---------- */
 @media (max-width: 640px) {
@@ -146,7 +148,7 @@ footer { margin-top: 44px; padding-top: 18px; padding-bottom: 30px; border-top: 
 /* ---------- Yazdırma ---------- */
 @media print {
   body { background: #fff; }
-  .ust nav, #denetle, .indir, .arac, .daha, #nasil, footer, .bekle { display: none !important; }
+  .ust nav, #denetle, .indir, .arac, .daha, #nasil, .bekle { display: none !important; }
   .kart, .bulgu, .ozet div { break-inside: avoid; border-color: #bbb; }
   .ust, .rozet, .ozet div { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

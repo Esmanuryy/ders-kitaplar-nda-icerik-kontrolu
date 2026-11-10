@@ -15,7 +15,7 @@
     kapali: ["bilgi", "TDK kapalıydı. Denetim bilgisayardaki sözlük ve listelerle yapıldı."],
   };
   const ORNEK_METIN =
-    "Bu konu çok guzel anlatılmış. Herkez sınava hazırlandı ve bir kaç soru çözdü.\n\n" +
+    "Bu konu çok guzel anlatılmış. Herkez sınava hazırlandı ve yanlız kalmadı.\n\n" +
     "Biz Ankarada yaşıyoruz.Sonra okula gittik. Kalem,silgi, ve defter aldık..\n\n" +
     "Bu konuyu anladın mı. Öğrenciler kütüphanede uzun süre ders çalıştılar\n\n" +
     "Bu salak şaka herkesi güldürdü!! Newton'un yasaları ve Pisagor bağıntısı çok önemlidir. Pisagor bir matematikçidir.";
@@ -156,9 +156,14 @@
     const sol = el("div");
     sol.append(el("div", "kelime", b.kelime));
     const sag = el("div");
+    const neden = el("p", "neden");
+    neden.append(el("b", null, "Neden hata?"), b.aciklama);
     const oneri = el("p", "oneri");
-    oneri.append(el("b", null, "Öneri: "), b.oneri);
-    sag.append(el("p", null, b.aciklama), oneri);
+    let etiket = "Öneri:", deger = b.oneri;
+    if (deger.startsWith("Doğrusu: ")) { etiket = "Doğrusu:"; deger = deger.slice(9); }
+    else if (b.kriter === "YAZIM" && !/[.;]$/.test(deger)) etiket = deger.includes(",") ? "Doğru yazılışı şunlardan biri olabilir:" : "Doğru yazılışı:";
+    oneri.append(el("b", null, etiket), deger);
+    sag.append(neden, oneri);
     const baglam = el("p", "baglam");
     vurgula(baglam, b.baglam, b.kelime);
     govde.append(sol, sag, baglam);

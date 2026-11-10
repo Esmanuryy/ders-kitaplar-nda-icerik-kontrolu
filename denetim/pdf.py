@@ -28,6 +28,10 @@ BITTI_RE = re.compile(r"[.!?:;…][\"”’')\]]*$")
 MADDE_ISARETI = "•›>▪◦‣●○■□▶"
 MADDE_RE = re.compile(rf"^(?:[{MADDE_ISARETI}]|[–-]\s|\d+[.)]\s|[a-zA-Z]\)\s)")
 EN_FAZLA_BIRLESIK = 400        # yarım kalan tırnak/parantez için birleştirilecek en uzun paragraf
+# Satır sonunda tireyle bölünmüş kelimenin bölündüğü yer. Burada birleştirilmez: "kita-plarını" birleşince
+# doğru bir kelime olur, ama yan yana sütunlardan gelen "konul-kurallar" birleşince anlamsız bir kelime olur.
+# Hangisi olduğuna Denetleyici sözlüğe bakarak karar verir (bolunmus_kelimeleri_birlestir).
+BOLUNME = "\ue000"
 
 
 def harfleri_duzelt(metin: str) -> str:
@@ -41,7 +45,8 @@ def harfleri_duzelt(metin: str) -> str:
 def blok_temizle(metin: str) -> str:
     """Satır sonu tirelemesini ve satır sonlarındaki boşlukları temizler."""
     metin = re.sub(r"­[ \t]*\n\s*", "", metin).replace("­", "")
-    metin = re.sub(r"-[ \t]*\n\s*(?=[a-zçğıöşü])", "", metin)                       # kita-\nplar
+    metin = re.sub(r"(?<=\w)-[ \t]*\n\s*(?:\d{1,3}\s+)?(?=[a-zçğıöşü])", BOLUNME, metin)   # kita-\nplar, pen- 2 cereden
+    metin = re.sub(r"(?<=\w)(['’])[ \t]*\n\s*(?=[a-zçğıöşü])", r"\1", metin)                 # İzmir'\nde -> İzmir'de
     metin = re.sub(r"(?<=[A-ZÇĞİÖŞÜ])-[ \t]*\n\s*(?=[A-ZÇĞİÖŞÜ])", "", metin)     # STRA-\nTEJİ
     return re.sub(r"[ \t]*\n\s*", " ", metin).strip()
 
@@ -121,8 +126,12 @@ def paragraflari_birlestir(parcalar):
         if re.match(r"[a-zçğıöşü]", metin):
             onceki = next((p for p in reversed(bekleyen) if _yarim_kalmis(p[2])), None)
             if onceki:
-                ek = "" if onceki[2].endswith("-") else " "
-                onceki[2] = onceki[2].removesuffix("-") + ek + metin
+                if onceki[2].endswith("-") and onceki[2][-2:-1].isalpha():
+                    onceki[2] = onceki[2][:-1] + BOLUNME + metin          # sayfa/sütun sonunda bölünen kelime
+                elif onceki[2].endswith(("'", "’")):
+                    onceki[2] += metin                                     # İzmir' + de
+                else:
+                    onceki[2] += " " + metin
                 continue
         if bekleyen and _acik_kalmis(bekleyen[-1][2]):
             bekleyen[-1][2] += (" / " if metin[0].isupper() else " ") + metin

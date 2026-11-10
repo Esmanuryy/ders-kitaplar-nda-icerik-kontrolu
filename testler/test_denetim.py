@@ -44,9 +44,6 @@ HATALI = [
     ("Yarın okula gelecekmisin diye sordu.", "gelecekmisin"),
     ("Bu cümle doğrumu acaba?", "doğrumu"),
     ("Herkez sınava hazırlandı.", "Herkez"),
-    ("Soruyu bir kaç kez okudu.", "bir kaç"),
-    ("Bu konuda hiç bir sorun yok.", "hiç bir"),
-    ("Bir çok öğrenci geldi.", "Bir çok"),
     ("Sonra Öğrencilr sınıfa girdi.", "Öğrencilr"),
     ("BÖLÜM ÖZETİ VE YANLIZLIK", "YANLIZLIK"),
     ("KONU ANLATIMII", "ANLATIMII"),
@@ -97,7 +94,9 @@ Milli Eğitim Bakanlığı kitapları ücretsiz dağıtmaktadır. Fransız İhti
 XIX. yüzyılda Osmanlıların ve Selçukluların tarihi incelendi. Bu, hükümet kararıdır.
 Dr. Gülbike YILDIRIM ve Prof.Dr. Mutlu YILMAZ kitabı hazırladı. Kur'an ve şer'i hükümler anlatıldı.
 Bu fonksiyon negatif olmayan bir sayı atar. Bir iple sallanabilirsiniz. Ama bu konu önemlidir.
-Zekâ, yegâne ve şikâyet kelimeleri şapkalı yazılabilir. Konu  : Trafik kuralları""".split("\n")
+Zekâ, yegâne ve şikâyet kelimeleri şapkalı yazılabilir. Konu  : Trafik kuralları
+Fazladan  boşluklar hata sayılmaz . Kitap ( 2017 ) yılında basıldı.
+Bir kaç kişi geldi ve hiç bir sorun çıkmadı. lhlamur ağacı çok güzel kokar.""".split("\n")
 
 
 class SahteTDK:
@@ -151,6 +150,16 @@ class PdfOkuma(unittest.TestCase):
             metinler = [p[2] for p in pdf_paragraflari(str(yol))]
         self.assertIn("Öğrenciler kitaplarını okudu ve çok sevindi.", metinler)
         self.assertIn("Veriyi işlemek", metinler)
+
+
+class BolunmusKelime(unittest.TestCase):
+    def test_tireyle_bolunen_kelime_birlesir(self):
+        sonuc = D.metin_denetle("Öğrenciler kita-\nplarını okudu. Biz İzmir'\nde yaşıyoruz. Okuma-\nyazma öğrendik.", False)
+        self.assertEqual([b.kelime for b in sonuc.bulgular], [])
+
+    def test_sutunlardan_gelen_parcalar_ayri_kelime_kalir(self):
+        self.assertEqual(D.bolunmus_kelimeleri_birlestir("eksiksiz konulkurallar başka"), "eksiksiz konul-kurallar başka")
+        self.assertEqual(D.bolunmus_kelimeleri_birlestir("kitaplarını"), "kitaplarını")
 
 
 class Birlestirme(unittest.TestCase):
