@@ -61,7 +61,7 @@ textarea { width: 100%; resize: vertical; padding: 12px 14px; border-radius: 6px
 .alt-satir { display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap; margin-top: 20px; }
 
 /* Anahtar (açma/kapama) */
-.anahtar { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; max-width: 620px; }
+.anahtar { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; max-width: 380px; flex: 1 1 300px; }
 .anahtar input { position: absolute; opacity: 0; }
 .anahtar small { display: block; color: var(--soluk); }
 .anahtar-kutu { flex: 0 0 40px; height: 22px; margin-top: 2px; border-radius: 22px; background: #c9ccd1; position: relative; transition: background .15s; }

@@ -72,11 +72,13 @@ def sonucu_hazirla(is_id: str, sonuc) -> dict:
         "kesildi": len(sonuc.bulgular) > MAX_GOSTERILEN_BULGU,
         "ozel_isimler": sonuc.ozel_adlar.most_common(),
         "okunamayan_sayfalar": sonuc.okunamayan_sayfalar,
+        "etkinlik_sayfalari": sonuc.etkinlik_sayfalari,
         "bulgular": [asdict(b) for b in sonuc.bulgular[:MAX_GOSTERILEN_BULGU]],
     }
 
 
-def calistir(is_id: str, tdk_kullan: bool, pdf_yolu: Path = None, metin: str = None, dosya_adi: str = ""):
+def calistir(is_id: str, tdk_kullan: bool, pdf_yolu: Path = None, metin: str = None, dosya_adi: str = "",
+             etkinlik_atla: bool = True):
     """Denetimi arka planda çalıştırır; site ilerlemeyi /durum adresinden izler."""
     def ilerleme(asama, yuzde):
         ISLER[is_id].update(asama=asama, yuzde=yuzde)
@@ -86,7 +88,7 @@ def calistir(is_id: str, tdk_kullan: bool, pdf_yolu: Path = None, metin: str = N
             ISLER[is_id].update(durum="calisiyor", asama="Başlıyor…", yuzde=1)
             if pdf_yolu:
                 pdf_kontrol(pdf_yolu)
-                sonuc = DENETLEYICI.pdf_denetle(pdf_yolu, dosya_adi, tdk_kullan, ilerleme)
+                sonuc = DENETLEYICI.pdf_denetle(pdf_yolu, dosya_adi, tdk_kullan, ilerleme, etkinlik_atla)
                 if not sonuc.paragraf_sayisi:
                     raise KullaniciHatasi("PDF'te okunabilir metin yok. Taranmış (resim) bir PDF olabilir; "
                                           "bu tür dosyalar için önce OCR yapılması gerekir.")
@@ -132,7 +134,8 @@ def denetle_pdf():
         if f.read(5) != b"%PDF-":
             yol.unlink(missing_ok=True)
             return hata("Bu dosya geçerli bir PDF gibi görünmüyor.")
-    return is_baslat(tdk_kullan=request.form.get("tdk") == "1", pdf_yolu=yol, dosya_adi=Path(dosya.filename).name)
+    return is_baslat(tdk_kullan=request.form.get("tdk") == "1", pdf_yolu=yol, dosya_adi=Path(dosya.filename).name,
+                     etkinlik_atla=request.form.get("etkinlik") != "0")
 
 
 @app.post("/denetle/metin")

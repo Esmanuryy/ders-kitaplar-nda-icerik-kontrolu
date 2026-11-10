@@ -41,6 +41,7 @@
     $("#sekme-metin").tabIndex = pdf ? -1 : 0;
     $("#panel-pdf").classList.toggle("gizli", !pdf);
     $("#panel-metin").classList.toggle("gizli", pdf);
+    $("#etkinlik-secenek").classList.toggle("gizli", !pdf);
     dugmeDurumu();
   }
 
@@ -121,6 +122,7 @@
         const f = new FormData();
         f.append("pdf", pdfDosya);
         f.append("tdk", tdk ? "1" : "0");
+        f.append("etkinlik", $("#etkinlik-sec").checked ? "1" : "0");
         is = await gonder("/denetle/pdf", f, false);
       } else {
         is = await gonder("/denetle/metin", { metin: $("#metin-girdi").value, tdk }, true);
@@ -230,6 +232,10 @@
     $("#bildirimler").replaceChildren();
     const [tur, mesaj] = TDK_MESAJ[s.tdk_durum] || TDK_MESAJ.kapali;
     bildirim(tur, mesaj);
+    if (s.etkinlik_sayfalari && s.etkinlik_sayfalari.length) {
+      bildirim("bilgi", "Etkinlik bölümleri denetlenmedi (" + s.etkinlik_sayfalari.length + " sayfa). Etkinliklerdeki yanlışlar öğrenci bulsun diye bilerek yazılır. Sayfalar: "
+        + s.etkinlik_sayfalari.join(", ") + ".");
+    }
     if (s.okunamayan_sayfalar.length) {
       bildirim("dikkat", "Şu sayfalarda bazı paragrafların metni PDF'ten bozuk çıktı ya da Türkçe değil; bu paragraflar denetlenmedi: sayfa "
         + s.okunamayan_sayfalar.join(", ") + ".");

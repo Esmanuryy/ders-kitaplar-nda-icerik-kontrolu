@@ -43,6 +43,7 @@ class Sonuc:
     bulgular: list = field(default_factory=list)
     ozel_adlar: Counter = field(default_factory=Counter)
     okunamayan_sayfalar: list = field(default_factory=list)
+    etkinlik_sayfalari: list = field(default_factory=list)   # etkinlik bölümü atlanan sayfalar
     sayfa_sayisi: int = 0
     paragraf_sayisi: int = 0
     tdk_durum: str = "kapali"    # kullanildi / kismen / ulasilamadi / beklenmeyen / kapali
@@ -153,11 +154,15 @@ class Denetleyici:
         sonuc.sure = round(time.time() - basla, 1)
         return sonuc
 
-    def pdf_denetle(self, yol, dosya_adi=None, tdk_kullan=True, ilerleme=None) -> Sonuc:
+    def pdf_denetle(self, yol, dosya_adi=None, tdk_kullan=True, ilerleme=None, etkinlik_atla=True) -> Sonuc:
+        """etkinlik_atla: kitaptaki etkinlik bölümleri (bilerek yanlış yazılmış alıştırmalar) denetlenmez."""
         ilerleme = ilerleme or (lambda asama, yuzde: None)
+        atlanan = []
         paragraflar = list(pdf_paragraflari(str(yol), lambda s, t: ilerleme(
-            f"PDF'ten metin çıkarılıyor (sayfa {s}/{t})", int(18 * s / t))))
-        return self.denetle(paragraflar, dosya_adi or Path(yol).name, tdk_kullan, ilerleme)
+            f"PDF'ten metin çıkarılıyor (sayfa {s}/{t})", int(18 * s / t)), etkinlik_atla, atlanan))
+        sonuc = self.denetle(paragraflar, dosya_adi or Path(yol).name, tdk_kullan, ilerleme)
+        sonuc.etkinlik_sayfalari = atlanan
+        return sonuc
 
     def metin_denetle(self, metin, tdk_kullan=True, ilerleme=None) -> Sonuc:
         return self.denetle(metin_paragraflari(metin), "Yapıştırılan metin", tdk_kullan, ilerleme)

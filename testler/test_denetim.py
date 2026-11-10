@@ -162,6 +162,25 @@ class BolunmusKelime(unittest.TestCase):
         self.assertEqual(D.bolunmus_kelimeleri_birlestir("kitaplarını"), "kitaplarını")
 
 
+class EtkinlikAtlama(unittest.TestCase):
+    def test_etkinlik_bolumu_atlanir_okuma_metni_denetlenir(self):
+        with tempfile.TemporaryDirectory() as klasor:
+            yol = Path(klasor) / "etkinlik.pdf"
+            belge = pymupdf.open()
+            sayfa = belge.new_page()
+            sayfa.insert_font(fontname="tr", fontfile="C:/Windows/Fonts/arial.ttf")
+            for y, satir in [(60, "Okuma metninde guzel bir hata var."), (120, "1. ETKİNLİK"),
+                             (150, "Aşağıdaki cümledeki yanlışı bulunuz: Herkez okula gitti.")]:
+                sayfa.insert_text((50, y), satir, fontname="tr", fontsize=11)
+            belge.save(yol)
+            belge.close()
+            atlanan = D.pdf_denetle(yol, tdk_kullan=False, etkinlik_atla=True)
+            hepsi = D.pdf_denetle(yol, tdk_kullan=False, etkinlik_atla=False)
+        self.assertEqual([b.kelime for b in atlanan.bulgular], ["guzel"])
+        self.assertEqual(atlanan.etkinlik_sayfalari, [1])
+        self.assertIn("Herkez", [b.kelime for b in hepsi.bulgular])
+
+
 class Birlestirme(unittest.TestCase):
     def test_ayni_kelime_tek_bulgu(self):
         b = [Bulgu(s, 1, "YAZIM", "guzel", "a", "güzel", "") for s in (3, 3, 7)]

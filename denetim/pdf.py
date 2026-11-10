@@ -34,6 +34,16 @@ EN_FAZLA_BIRLESIK = 400        # yarım kalan tırnak/parantez için birleştiri
 BOLUNME = "\ue000"
 
 
+# Etkinlik bölümünün başladığını gösteren satırlar. Etkinliklerde öğrenciden düzeltmesi istenen yanlışlar bilerek
+# yazılır ("Aşağıdaki kelimelerin yanlışlarını bulunuz"); bu yüzden etkinlik bölümleri denetlenmeden atlanabilir.
+ETKINLIK_RE = re.compile(
+    r"^(?:\d+\.\s*)?ETK[İI]NL[İI]K\b"                          # 4. ETKİNLİK
+    r"|^(?:\d+\.\s*)?Etkinlik\s*$"                              # Etkinlik (tek başına başlık)
+    r"|^[a-zçğıöşü]\.[a-zçğıöşü]\.(?:\s|$)"                       # a.a. / b.b. etkinlik maddeleri
+    r"|^(?:Sıra Sizde|Ölçme ve Değerlendirme|Ölçme Değerlendirme|Değerlendirme Soruları|Haydi Uygulayalım|Uygulayalım)"
+    r"|^(?:ÖZ DEĞERLENDİRME ÖLÇEĞİ|Öz Değerlendirme Ölçeği|Akran Değerlendirme Formu|[A-ZÇĞİÖŞÜ /]+ ÖZ DEĞERLENDİRME ÖLÇEĞİ)")
+
+
 def harfleri_duzelt(metin: str) -> str:
     metin = unicodedata.normalize("NFC", metin).translate(HARF_DUZELT)
     for kural, tablo in BOZUK_YAZI_TIPLERI:
@@ -73,7 +83,7 @@ def blok_parcala(ham: str) -> list[str]:
     return [re.sub(rf"^[{MADDE_ISARETI}]\s*", "", blok_temizle("\n".join(g))) for g in gruplar]
 
 
-def sayfa_bloklari(sayfa) -> list[str]:
+def sayfa_bloklari(sayfa, etkinlik_atla=False) -> tuple[list[str], bool]:
     """Sayfanın metnini okuma sırasıyla verir. Her satır, hemen üstünde ve aynı yatay konumda olan satırın
     devamı sayılır; böylece yan yana sütunlar karışmaz. Eğik ve dikey yazılar alınmaz."""
     bayrak = pymupdf.TEXTFLAGS_DICT & ~pymupdf.TEXT_PRESERVE_LIGATURES & ~pymupdf.TEXT_PRESERVE_IMAGES
@@ -84,6 +94,13 @@ def sayfa_bloklari(sayfa) -> list[str]:
             if metin.strip() and abs(l["dir"][0]) >= 0.9995 and abs(l["dir"][1]) <= 0.03:
                 satirlar.append((*l["bbox"], metin))
     satirlar.sort(key=lambda s: (round(s[1]), s[0]))
+
+    # Etkinlik başlığı varsa, başlığın olduğu yerden sayfa sonuna kadar olan metin alınmaz.
+    etkinlik_y = None
+    if etkinlik_atla:
+        etkinlik_y = next((s[1] for s in satirlar if ETKINLIK_RE.search(s[4].strip())), None)
+        if etkinlik_y is not None:
+            satirlar = [s for s in satirlar if s[1] < etkinlik_y - 3]
 
     parcalar = []
     for x0, y0, x1, y1, metin in satirlar:
@@ -99,7 +116,7 @@ def sayfa_bloklari(sayfa) -> list[str]:
         else:
             parcalar.append({"ilk": (round(y0), x0), "x0": x0, "y0": y0, "x1": x1, "y1": y1, "metin": metin})
     parcalar.sort(key=lambda p: p["ilk"])
-    return [p["metin"] for p in parcalar]
+    return [p["metin"] for p in parcalar], etkinlik_y is not None
 
 
 def _yarim_kalmis(metin: str) -> bool:
@@ -141,21 +158,25 @@ def paragraflari_birlestir(parcalar):
     yield from map(tuple, bekleyen)
 
 
-def pdf_parcalari(yol: str, ilerleme=None):
-    """PDF'teki her metin parçasını (sayfa_no, metin) olarak verir."""
+def pdf_parcalari(yol: str, ilerleme=None, etkinlik_atla=False, atlanan=None):
+    """PDF'teki her metin parçasını (sayfa_no, metin) olarak verir. etkinlik_atla açıksa etkinlik bölümleri alınmaz
+    ve bu sayfaların numaraları atlanan listesine eklenir."""
     with pymupdf.open(yol) as belge:
         toplam = belge.page_count
         for sayfa_no, sayfa in enumerate(belge, start=1):
-            for blok in sayfa_bloklari(sayfa):
+            bloklar, etkinlik_var = sayfa_bloklari(sayfa, etkinlik_atla)
+            if etkinlik_var and atlanan is not None:
+                atlanan.append(sayfa_no)
+            for blok in bloklar:
                 for metin in blok_parcala(blok):
                     yield sayfa_no, metin
             if ilerleme and (sayfa_no % 5 == 0 or sayfa_no == toplam):
                 ilerleme(sayfa_no, toplam)
 
 
-def pdf_paragraflari(yol: str, ilerleme=None):
+def pdf_paragraflari(yol: str, ilerleme=None, etkinlik_atla=False, atlanan=None):
     """PDF'teki paragrafları (sayfa_no, paragraf_no, metin) olarak verir."""
-    return paragraflari_birlestir(pdf_parcalari(yol, ilerleme))
+    return paragraflari_birlestir(pdf_parcalari(yol, ilerleme, etkinlik_atla, atlanan))
 
 
 def metin_paragraflari(metin: str) -> list:

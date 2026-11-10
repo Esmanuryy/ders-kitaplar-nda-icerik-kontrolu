@@ -58,6 +58,11 @@
         <span class="anahtar-kutu" aria-hidden="true"></span>
         <span><strong>TDK sözlüğünü de kullan</strong><small>İnternet gerekir. TDK cevap vermezse bilgisayardaki sözlükle devam edilir.</small></span>
       </label>
+      <label class="anahtar" id="etkinlik-secenek">
+        <input type="checkbox" id="etkinlik-sec" checked>
+        <span class="anahtar-kutu" aria-hidden="true"></span>
+        <span><strong>Etkinlikleri atla</strong><small>Etkinliklerdeki yanlışlar öğrenci bulsun diye bilerek yazılır; bu bölümler denetlenmez.</small></span>
+      </label>
       <button class="btn" id="denetle-btn" disabled>Denetle</button>
     </div>
     <div class="uyari hata gizli" id="hata" role="alert"></div>
@@ -107,7 +112,7 @@
   <section id="nasil" class="bolum" aria-labelledby="nasil-baslik">
     <h2 id="nasil-baslik">Nasıl çalışır?</h2>
     <ol class="adimlar">
-      <li><b>PDF okunur.</b> Metin sayfa sayfa çıkarılır; bozuk harfler, satır sonu tireleri ve yan yana sütunlar düzeltilir.</li>
+      <li><b>PDF okunur.</b> Metin sayfa sayfa çıkarılır; bozuk harfler, satır sonu tireleri ve yan yana sütunlar düzeltilir. Bilerek yanlış yazılmış etkinlikler atlanır.</li>
       <li><b>Özel isimler ayrılır.</b> Kişi, yer ve kurum adları hata sayılmaz; ayrı bir listede gösterilir.</li>
       <li><b>Her kelime tek tek taranır.</b> Kelimeler birleştirilmez, anlamına bakılmaz; yazılışı ve sözlük kaydı incelenir.</li>
       <li><b>Sonuç raporlanır.</b> Her hatanın sayfası, neden hata olduğu ve doğru yazılışı gösterilir.</li>

@@ -56,6 +56,7 @@ def html_yaz(sonuc, yol):
     sayilar = " · ".join(f"{KRITER_ADLARI[k]}: {v}" for k, v in sonuc.sayilar().items())
     ozel = ", ".join(f"{e(a)} ({n})" for a, n in sonuc.ozel_adlar.most_common()) or "yok"
     okunamayan = ", ".join(map(str, sonuc.okunamayan_sayfalar)) or "yok"
+    etkinlik = ", ".join(map(str, sonuc.etkinlik_sayfalari)) or "yok"
     Path(yol).write_text(f"""<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>Denetim Raporu</title>
 <style>
 body{{font-family:Arial,sans-serif;margin:28px;color:#1c1c1c}}h1{{font-size:22px;margin:0 0 4px;border-top:6px solid #dc0d15;padding-top:14px}}
@@ -68,6 +69,7 @@ tr.argo td:nth-child(2){{color:#b30a11;font-weight:bold}}tr.yazim td:nth-child(2
 <p><b>Dosya:</b> {e(sonuc.dosya_adi)} — {sonuc.sayfa_sayisi} sayfa, {sonuc.paragraf_sayisi} paragraf</p>
 <p><b>Bulgu:</b> {len(sonuc.bulgular)} ({sayilar})</p>
 <p><b>Ayrılan özel isimler (hata sayılmadı):</b> {ozel}</p>
+<p><b>Etkinlik bölümü atlanan sayfalar (bilerek yanlış yazılmış alıştırmalar):</b> {etkinlik}</p>
 <p><b>Metni okunamayan sayfalar (denetlenmedi):</b> {okunamayan}</p>
 <table><tr><th>Sayfa</th><th>Tür</th><th>Kelime</th><th>Açıklama</th><th>Öneri</th><th>Tekrar</th><th>Geçtiği sayfalar</th><th>Bağlam</th></tr>
 {satirlar}</table></body></html>""", encoding="utf-8")
