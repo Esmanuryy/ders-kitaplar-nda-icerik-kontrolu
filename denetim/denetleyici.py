@@ -51,6 +51,7 @@ class Sonuc:
     tdk_durum: str = "kapali"    # kullanildi / kismen / ulasilamadi / beklenmeyen / kapali
     sure: float = 0.0
     kitap_turu: str = "sozel"    # sozel / sayisal
+    kelime_sayisi: int = 0       # denetlenen kelime sayısı (hata oranı için)
 
     def sayilar(self) -> dict:
         s = {"ARGO": 0, "YAZIM": 0, "NOKTALAMA": 0}
@@ -203,6 +204,7 @@ class Denetleyici:
             if pdf_metni and self.okunamaz_mi(metin.replace(MATEMATIK, " ")):
                 okunamayan.append(sayfa)
             else:
+                sonuc.kelime_sayisi += len(KELIME_RE.findall(adresleri_ort(metin.replace(MATEMATIK, " "))))
                 ham += self.paragraf_denetle(sayfa, par_no, metin, tdk, belge_ozel, onceki_matematik, sayisal,
                                              pdf_metni)
             if i % 50 == 0 or i == len(paragraflar):

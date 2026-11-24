@@ -213,6 +213,18 @@ class KitapTuru(unittest.TestCase):
         self.assertEqual(sayisal.kitap_turu, "sayisal")
 
 
+class Degerlendirme(unittest.TestCase):
+    def test_hata_orani_ve_seviye(self):
+        from denetim import Sonuc, degerlendir
+        temiz = degerlendir(Sonuc("a", kelime_sayisi=2000, sayfa_sayisi=4))
+        self.assertEqual((temiz["puan"], temiz["seviye"], temiz["binde"]), (100, "temiz", 0.0))
+        bulgu = [Bulgu(1, 1, "YAZIM", "guzel", "a", "güzel", "", adet=3), Bulgu(2, 1, "NOKTALAMA", "..", "a", ".", "")]
+        d = degerlendir(Sonuc("a", bulgular=bulgu, kelime_sayisi=2000, sayfa_sayisi=4))
+        self.assertEqual((d["hata"], d["binde"], d["seviye"], d["puan"]), (4, 2.0, "iyi", 80))
+        argo = degerlendir(Sonuc("a", bulgular=[Bulgu(1, 1, "ARGO", "salak", "a", "b", "")], kelime_sayisi=10000))
+        self.assertEqual(argo["seviye"], "orta")       # argo varsa en fazla "Orta"
+
+
 class Birlestirme(unittest.TestCase):
     def test_ayni_kelime_tek_bulgu(self):
         b = [Bulgu(s, 1, "YAZIM", "guzel", "a", "güzel", "") for s in (3, 3, 7)]

@@ -267,6 +267,8 @@
       ozet.append(k);
     });
 
+    degerlendirmeyiCiz(s.degerlendirme);
+
     $("#bildirimler").replaceChildren();
     const [tur, mesaj] = TDK_MESAJ[s.tdk_durum] || TDK_MESAJ.kapali;
     bildirim(tur, mesaj);
@@ -293,6 +295,41 @@
     bolum.classList.remove("gizli");
     $("#yeni-btn").classList.remove("gizli");
     bolum.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ---------------- Değerlendirme ----------------
+  const sayi = (x, b = 2) => Number(x).toLocaleString("tr-TR", { maximumFractionDigits: b });
+
+  function degerlendirmeyiCiz(d) {
+    const kutu = $("#degerlendirme");
+    kutu.className = "kart degerlendirme " + d.seviye;
+    $("#deg-puan").textContent = d.puan;
+    const cevre = 2 * Math.PI * 52;                     // puan halkası: puan kadar dolar
+    $("#deg-halka").style.strokeDasharray = cevre;
+    $("#deg-halka").style.strokeDashoffset = cevre * (1 - d.puan / 100);
+    $("#deg-seviye").textContent = d.seviye_adi;
+    $("#deg-yorum").textContent = d.yorum;
+    $("#deg-binde").textContent = sayi(d.binde);
+    $("#deg-dogru").textContent = "%" + sayi(d.dogru_yuzde);
+    $("#deg-sayfa").textContent = sayi(d.sayfa_basina);
+    $("#deg-kelime").textContent = sayi(d.kelime, 0);
+    const turler = $("#deg-turler");
+    turler.replaceChildren();
+    const enBuyuk = Math.max(1, ...Object.values(d.turler).map((t) => t.hata));
+    [["ARGO", "argo"], ["YAZIM", "yazim"], ["NOKTALAMA", "nokta"]].forEach(([kod, sinif]) => {
+      const t = d.turler[kod], satir = el("div", "tur-satir " + sinif);
+      const cubuk = el("span", "tur-cubuk");
+      const dolu = el("span");
+      dolu.style.width = (t.hata / enBuyuk * 100) + "%";
+      cubuk.append(dolu);
+      satir.append(el("span", "tur-ad", KRITER[kod].ad), cubuk,
+        el("span", "tur-deger", t.hata + " yer · 1000 kelimede " + sayi(t.binde)));
+      turler.append(satir);
+    });
+    const uyari = $("#deg-uyarilar");
+    uyari.replaceChildren();
+    d.uyarilar.forEach((u) => uyari.append(el("li", null, u)));
+    $("#deg-not").textContent = d.not;
   }
 
   // ---------------- Sayfa görüntüleyici ----------------

@@ -14,7 +14,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from denetim import Denetleyici, csv_yaz, html_yaz
+from denetim import Denetleyici, csv_yaz, degerlendir, html_yaz
+from denetim.degerlendirme import sayi_yaz
 
 
 def main():
@@ -44,6 +45,14 @@ def main():
     sayilar = ", ".join(f"{k}: {v}" for k, v in sonuc.sayilar().items())
     print(f"\n{sonuc.sayfa_sayisi} sayfa, {sonuc.paragraf_sayisi} paragraf tarandı. {len(sonuc.bulgular)} bulgu ({sayilar}).")
     print(f"TDK: {sonuc.tdk_durum}   Süre: {sonuc.sure} sn")
+    d = degerlendir(sonuc)
+    print(f"\nDEĞERLENDİRME: {d['seviye_adi']} · Kalite puanı {d['puan']}/100")
+    print(f"  Hata oranı: 1000 kelimede {sayi_yaz(d['binde'])} hata ({sayi_yaz(d['kelime'])} kelimede {d['hata']} yer), "
+          f"hatasız kelime oranı %{sayi_yaz(d['dogru_yuzde'])}")
+    print("  " + d["yorum"])
+    for u in d["uyarilar"]:
+        print("  " + u)
+    print("  Not: " + d["not"] + "\n")
     print("Ayrılan özel isimler: " + (", ".join(a for a, _ in sonuc.ozel_adlar.most_common(30)) or "yok"))
     if sonuc.etkinlik_sayfalari:
         print("Etkinlik bölümü atlanan sayfalar: " + ", ".join(map(str, sonuc.etkinlik_sayfalari)))

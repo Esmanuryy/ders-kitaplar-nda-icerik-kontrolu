@@ -22,7 +22,7 @@ from pathlib import Path
 import pymupdf
 from flask import Flask, abort, jsonify, render_template, request, send_file
 
-from denetim import Denetleyici, csv_yaz, html_yaz
+from denetim import Denetleyici, csv_yaz, degerlendir, html_yaz
 from denetim.pdf import KITAP_TURLERI
 
 MAX_PDF_MB = int(os.environ.get("DENETLEYICI_MAX_MB", "500"))
@@ -82,6 +82,7 @@ def sonucu_hazirla(is_id: str, sonuc) -> dict:
         "ozel_isimler": sonuc.ozel_adlar.most_common(),
         "okunamayan_sayfalar": sonuc.okunamayan_sayfalar,
         "etkinlik_sayfalari": sonuc.etkinlik_sayfalari,
+        "degerlendirme": degerlendir(sonuc),
         "kitap_turu": KITAP_TURLERI[sonuc.kitap_turu],
         "bulgular": [asdict(b) for b in sonuc.bulgular[:MAX_GOSTERILEN_BULGU]],
     }

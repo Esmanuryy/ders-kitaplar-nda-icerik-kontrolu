@@ -5,6 +5,7 @@ import html
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
+from .degerlendirme import degerlendir, sayi_yaz
 from .metin import tr_kucuk
 
 KRITER_ADLARI = {"ARGO": "Argo / uygunsuz", "YAZIM": "Yazım", "NOKTALAMA": "Noktalama"}
@@ -57,18 +58,35 @@ def html_yaz(sonuc, yol):
     ozel = ", ".join(f"{e(a)} ({n})" for a, n in sonuc.ozel_adlar.most_common()) or "yok"
     okunamayan = ", ".join(map(str, sonuc.okunamayan_sayfalar)) or "yok"
     etkinlik = ", ".join(map(str, sonuc.etkinlik_sayfalari)) or "yok"
+    d = degerlendir(sonuc)
+    turler = " · ".join(f"{KRITER_ADLARI[k]}: {sayi_yaz(v['binde'])}" for k, v in d["turler"].items())
+    degerlendirme = (
+        f"<div class='deg'><p class='deg-ust'><span class='rozet {d['seviye']}'>{e(d['seviye_adi'])}</span> "
+        f"Kalite puanı: <b>{d['puan']} / 100</b></p>"
+        f"<p>{e(d['yorum'])}</p>"
+        f"<p><b>Hata oranı:</b> 1000 kelimede {sayi_yaz(d['binde'])} hata ({sayi_yaz(d['kelime'])} kelimede "
+        f"{sayi_yaz(d['hata'])} yer) · hatasız kelime oranı %{sayi_yaz(d['dogru_yuzde'])} · "
+        f"sayfa başına {sayi_yaz(d['sayfa_basina'])} hata</p>"
+        f"<p><b>Türlere göre (1000 kelimede):</b> {turler}</p>"
+        + "".join(f"<p>{e(u)}</p>" for u in d["uyarilar"])
+        + f"<p class='not'>{e(d['not'])}</p></div>")
     Path(yol).write_text(f"""<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>Denetim Raporu</title>
 <style>
 body{{font-family:Arial,sans-serif;margin:28px;color:#1c1c1c}}h1{{font-size:22px;margin:0 0 4px;border-top:6px solid #dc0d15;padding-top:14px}}
 p{{margin:4px 0;font-size:14px}}table{{border-collapse:collapse;width:100%;margin-top:16px}}
 td,th{{border:1px solid #d9d9d9;padding:6px 8px;font-size:13px;vertical-align:top;text-align:left}}th{{background:#dc0d15;color:#fff}}
-tr.argo td:nth-child(2){{color:#b30a11;font-weight:bold}}tr.yazim td:nth-child(2){{color:#8a5300;font-weight:bold}}
+tr.argo td:nth-child(2){{color:#b30a11;font-weight:bold}}h2{{font-size:17px;margin:18px 0 6px}}
+.deg{{border:1px solid #d9d9d9;border-radius:6px;padding:10px 14px}}.deg p{{margin:5px 0}}.deg .not{{color:#666;font-size:12px}}
+.rozet{{display:inline-block;padding:2px 10px;border-radius:12px;color:#fff;font-weight:bold;background:#555;margin-right:8px}}
+.rozet.temiz,.rozet.cok_iyi{{background:#1b6a3b}}.rozet.iyi{{background:#2d6a8a}}.rozet.orta{{background:#8a5300}}.rozet.zayif{{background:#b40a11}}tr.yazim td:nth-child(2){{color:#8a5300;font-weight:bold}}
 @media print{{body{{margin:0}}th{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
 </style></head><body>
 <h1>Ders Kitabı Denetim Raporu</h1>
 <p><b>Dosya:</b> {e(sonuc.dosya_adi)} — {sonuc.sayfa_sayisi} sayfa, {sonuc.paragraf_sayisi} paragraf</p>
 <p><b>Kitap türü:</b> {"Sayısal ders" if getattr(sonuc, "kitap_turu", "sozel") == "sayisal" else "Sözel ders"}</p>
 <p><b>Bulgu:</b> {len(sonuc.bulgular)} ({sayilar})</p>
+<h2>Değerlendirme</h2>
+{degerlendirme}
 <p><b>Ayrılan özel isimler (hata sayılmadı):</b> {ozel}</p>
 <p><b>Etkinlik ve çalışma bölümü atlanan sayfalar:</b> {etkinlik}</p>
 <p><b>Metni okunamayan sayfalar (denetlenmedi):</b> {okunamayan}</p>

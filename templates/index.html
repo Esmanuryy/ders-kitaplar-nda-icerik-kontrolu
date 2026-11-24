@@ -127,6 +127,29 @@
     </div>
 
     <div class="ozet" id="ozet"></div>
+
+    <section class="kart degerlendirme" id="degerlendirme" aria-labelledby="deg-baslik">
+      <div class="deg-sol">
+        <div class="puan" id="deg-puan-kutu">
+          <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="puan-iz" cx="60" cy="60" r="52"/><circle class="puan-dolgu" id="deg-halka" cx="60" cy="60" r="52"/></svg>
+          <div class="puan-ic"><b id="deg-puan">0</b><span>/ 100</span></div>
+        </div>
+        <span class="seviye" id="deg-seviye"></span>
+      </div>
+      <div class="deg-sag">
+        <h3 id="deg-baslik">Hata tespit oranı ve değerlendirme</h3>
+        <p class="deg-yorum" id="deg-yorum"></p>
+        <dl class="oranlar">
+          <div><dt>1000 kelimede hata</dt><dd id="deg-binde"></dd></div>
+          <div><dt>Hatasız kelime</dt><dd id="deg-dogru"></dd></div>
+          <div><dt>Sayfa başına hata</dt><dd id="deg-sayfa"></dd></div>
+          <div><dt>Denetlenen kelime</dt><dd id="deg-kelime"></dd></div>
+        </dl>
+        <div class="tur-oran" id="deg-turler"></div>
+        <ul class="deg-uyari" id="deg-uyarilar"></ul>
+        <p class="not" id="deg-not"></p>
+      </div>
+    </section>
     <div id="bildirimler"></div>
 
     <details class="kart katlanir gizli" id="ozel-kutu">

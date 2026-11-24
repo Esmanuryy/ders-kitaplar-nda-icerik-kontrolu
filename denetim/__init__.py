@@ -11,10 +11,12 @@ Modüller:
     noktalama.py     Kriter 3: noktalama ve tekrar
     ozel_isim.py     Özel isimleri ayırma
     rapor.py         Bulgu kaydı, CSV ve HTML rapor
+    degerlendirme.py Hata oranı, kalite puanı ve yorum
     denetleyici.py   Hepsini birleştiren Denetleyici sınıfı
 """
 
+from .degerlendirme import degerlendir
 from .denetleyici import Denetleyici, Sonuc
 from .rapor import Bulgu, csv_yaz, html_yaz
 
-__all__ = ["Denetleyici", "Sonuc", "Bulgu", "csv_yaz", "html_yaz"]
+__all__ = ["Denetleyici", "Sonuc", "Bulgu", "csv_yaz", "html_yaz", "degerlendir"]
