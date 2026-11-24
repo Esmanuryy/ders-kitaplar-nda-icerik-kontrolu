@@ -23,10 +23,62 @@ def ad_soyad_icinde_mi(metin: str, m, sozluk) -> bool:
     once = re.search(rf"([{HARFLER}]+)(\.?)[ -]+$", metin[:m.start()])
     if not once or not once.group(1)[0].isupper() or (kendi_buyuk and once.group(1).isupper()):
         return False
+    if kendi_buyuk and not once.group(2) and not once.group(1).isupper():
+        return True                                                    # Ali BAYANDUR: ad + büyük harfli soyad
     onceki = tr_kucuk(once.group(1))
     if once.group(2):
         return onceki in KISALTMALAR                                   # Dr. Gülbike, Prof. Ayşe
     return not cumle_basi_mi(metin, once.start(1)) or sozluk.ozel_isim_mi(onceki) or not sozluk.gecerli_mi(onceki)
+
+
+# Özel isimden sonra gelen ve onun ne olduğunu söyleyen kelimeler: Kuşar şehri, Isık halkı, Kadırkan ormanı
+AD_TURU_RE = re.compile(
+    r"\s+(?:şehr|kent|köy|kasaba|orman|nehr|ırmağ|çay|dağ|tepe|göl|deniz|körfez|boğaz|kanal|ada|yarımada|vadi|ova|"
+    r"bölge|ülke|eyalet|kavm|halk|oymağ|devlet|hanedan|beylik|imparatorluğ|sistem|koleksiyon|teşkilat|vakf|cami|"
+    r"medrese|saray|kale|köprü|hamam|türbe|külliye|antlaşma|savaş|muharebe|isyan|destan|yazıt|gazete|dergi|macun|"
+    r"şirket|fabrika|şehir)(?:l[ae]r)?(?:s?[ıiuü])(?:n[ıiuü]n|nd[ae]n?|n[ae]|n[ıiuü])?\b")
+_B = BUYUK_HARF
+
+
+def ozel_ad_baglami_mi(metin: str, m) -> bool:
+    """Sözlükte olmayan büyük harfli kelimenin bir ad olduğunu gösteren bağlamlar (anlamına bakılmaz, yalnızca
+    çevresindeki yazıya bakılır):
+      * yabancı ad ve okunuşu:            Weser (Viza), Kiel (Kiıl), Sorbonne'da (Sorbon)
+      * rakamlı kod:                       Kovid-19, Senitel-2
+      * Osmanlıca tamlama:                 Mekteb-i Tıbbiyye-i Şahane, Kitâb-ı Bahriyye, Bacıyan-ı Rum
+      * büyük harfli adlardan oluşan liste: Serez, Ferye, Üsküp / Riyad–Cidde–Dammam
+      * adın türünü söyleyen kelime:       Kuşar şehri, Isık halkı, Pençik sistemi
+      * şapkalı Arapça-Farsça ad:          Levnî, Harirî"""
+    once, sonra = metin[:m.start()], metin[m.end():]
+    kelime = m.group()
+    if re.match(rf"\s*\(\s*[{_B}][^()]{{0,30}}\)", sonra) or re.search(rf"[{_B}][^\s()]*\s*\(\s*$", once):
+        return True
+    if re.match(r"-\d", sonra) or re.match(rf"-[{_B}]", sonra):
+        return True                                                    # Kovid-19, KABARDİN-BALKARYA
+    if (re.search(rf"[{_B}][{HARFLER}]+ $", once) and re.match(rf" [{_B}][{HARFLER}]", sonra)
+            and not cumle_basi_mi(metin, re.search(rf"[{_B}][{HARFLER}]+ $", once).start())):
+        return True                                                    # Tarım Makinaları Bilimi Dergisi
+    if re.match(r"-[ıiuü]\b", sonra) or re.search(r"-[ıiuü]\s+$", once):
+        return True
+    liste_once = re.search(rf"(?:^|[\s(–—-])([{_B}][{HARFLER}’']+)\s*(?:,|–|—|-|\bve\b|\bile\b)\s*$", once)
+    liste_sonra = re.match(rf"\s*(?:,|–|—|-|\bve\b|\bile\b)\s*[{_B}][{HARFLER}]", sonra)
+    if liste_once and not cumle_basi_mi(metin, liste_once.start(1)) or (liste_sonra and liste_once):
+        return True
+    if liste_sonra and re.match(rf"\s*(?:,|–|—)\s*[{_B}][{HARFLER}]+\s*(?:,|–|—)", sonra):
+        return True                                                    # Kıtay, Tatabı, ... (liste başı)
+    if AD_TURU_RE.match(sonra):
+        return True
+    return bool(re.search(r"[âîû]", kelime)) and not cumle_basi_mi(metin, m.start())
+
+
+def unlu_uyumu_bozuk_mu(isim: str, ek: str) -> bool:
+    """Ankara'de: ismin son ünlüsü kalın, ekin ilk ünlüsü ince (ya da tersi). Refi'i, Ahmet'e uyumludur."""
+    isim_unlu = re.findall(r"[aıoueiöüâîû]", tr_kucuk(isim))
+    ek_unlu = re.findall(r"[aıoueiöü]", tr_kucuk(ek))
+    if not isim_unlu or not ek_unlu:
+        return False
+    kalin = lambda u: u in "aıouâû"
+    return kalin(isim_unlu[-1]) != kalin(ek_unlu[0])
 
 
 def ozel_isimleri_ayir(paragraflar, sozluk, izinli_kokler=()) -> Counter:

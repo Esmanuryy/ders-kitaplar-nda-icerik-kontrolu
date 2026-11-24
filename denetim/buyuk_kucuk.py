@@ -25,10 +25,13 @@ def buyuk_i_olabilir(kelime: str, sozluk) -> bool:
     return kelime[:1] == "l" and sozluk.dogru_yazilmis_mi("ı" + tr_kucuk(kelime[1:]))
 
 
-def harf_hatalari_bul(sayfa, par_no, metin, ozel_isimler, sozluk, matematik=False) -> list[Bulgu]:
+def harf_hatalari_bul(sayfa, par_no, metin, ozel_isimler, sozluk, matematik=False, pdf=False) -> list[Bulgu]:
     """matematik: paragrafta ya da hemen öncesinde formül var. Formül PDF'ten çıkarılınca cümle formülün
     ortasından başlar gibi görünür ("işleminin sonucunu bulunuz"); bu yüzden cümle başı kuralları uygulanmaz."""
     bulgular, isaretli = [], set()
+    # PDF'te cümle başı kuralları güvenilir değil: sütun, tablo ve sözlükçe satırları ("matuf: Bir yöne eğilmiş")
+    # birleşince cümle ortası başlangıç gibi görünür. Emin olunamayan yerde hata yazılmaz.
+    matematik = matematik or pdf
     tarama = adresleri_ort(metin)
 
     def ekle(bas, son, kelime, aciklama, oneri):
@@ -71,7 +74,7 @@ def harf_hatalari_bul(sayfa, par_no, metin, ozel_isimler, sozluk, matematik=Fals
             continue
         # 4) Kelimenin ortasında yanlış büyük harf (oKul, kitapLar). JavaScript gibi özel adlar ve MySQL gibi
         #    birden çok büyük harfli kısaltmalar elenir.
-        if (len(govde) >= 3 and sozluk.gecerli_mi(kucuk) and not sozluk.ozel_isim_mi(kucuk)
+        if (len(govde) >= 5 and sozluk.gecerli_mi(kucuk) and not sozluk.ozel_isim_mi(kucuk)   # IoT, loT: kısaltma
                 and len(re.findall(rf"[{BUYUK_HARF}]", govde[1:])) == 1):
             if re.match(rf"^[{KUCUK_HARF}]+[{BUYUK_HARF}]", govde):
                 ekle(m.start(), m.start() + len(govde), govde, "Kelimenin ortasında büyük harf kullanılmaz.",

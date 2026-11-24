@@ -7,8 +7,10 @@ Adres:       http://127.0.0.1:5000
 En büyük PDF boyutu 500 MB'dır. Değiştirmek için (PowerShell):  $env:DENETLEYICI_MAX_MB = "1000"
 """
 
+import atexit
 import os
 import re
+import shutil
 import tempfile
 import threading
 import traceback
@@ -31,12 +33,17 @@ ID_BICIMI = re.compile(r"^[0-9a-f]{32}$")
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_PDF_MB * 1024 * 1024
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0          # tarayıcı stil ve betik dosyalarının eskisini kullanmasın
+# Sayfadaki stil/betik adreslerine eklenir; dosyalar değişince tarayıcı yenisini indirir.
+SURUM = str(int(max((Path(__file__).parent / "static" / f).stat().st_mtime for f in ("stil.css", "uygulama.js"))))
 
 print("Sözlükler yükleniyor… (yaklaşık 15 saniye sürer)")
 DENETLEYICI = Denetleyici()
 KILIT = threading.Lock()                                   # aynı anda tek denetim; diğerleri sırada bekler
 GECICI = Path(tempfile.mkdtemp(prefix="denetleyici_"))
+atexit.register(shutil.rmtree, GECICI, ignore_errors=True)  # site kapanınca yüklenen PDF'ler ve raporlar silinir
 ISLER: "OrderedDict[str, dict]" = OrderedDict()
+PDFLER: dict = {}                # iş numarası -> denetlenen PDF (sayfa görüntüleyici için saklanır)
 
 
 class KullaniciHatasi(Exception):
@@ -52,6 +59,7 @@ def pdf_kontrol(yol: Path):
         with pymupdf.open(str(yol)) as belge:
             if belge.needs_pass:
                 raise KullaniciHatasi("PDF şifreli. Şifresiz bir kopyasını yükleyin.")
+            return belge.page_count
     except KullaniciHatasi:
         raise
     except Exception:
@@ -89,22 +97,26 @@ def calistir(is_id: str, tdk_kullan: bool, pdf_yolu: Path = None, metin: str = N
         with KILIT:
             ISLER[is_id].update(durum="calisiyor", asama="Başlıyor…", yuzde=1)
             if pdf_yolu:
-                pdf_kontrol(pdf_yolu)
+                toplam_sayfa = pdf_kontrol(pdf_yolu)
                 sonuc = DENETLEYICI.pdf_denetle(pdf_yolu, dosya_adi, tdk_kullan, ilerleme, etkinlik_atla, kitap_turu)
                 if not sonuc.paragraf_sayisi:
                     raise KullaniciHatasi("PDF'te okunabilir metin yok. Taranmış (resim) bir PDF olabilir; "
                                           "bu tür dosyalar için önce OCR yapılması gerekir.")
             else:
                 sonuc = DENETLEYICI.metin_denetle(metin, tdk_kullan, ilerleme, kitap_turu)
-            ISLER[is_id].update(durum="bitti", asama="Tamamlandı", yuzde=100, sonuc=sonucu_hazirla(is_id, sonuc))
+            ozet = sonucu_hazirla(is_id, sonuc)
+            if pdf_yolu:
+                PDFLER[is_id] = pdf_yolu                  # bulgunun sayfası sitede gösterilebilsin diye saklanır
+                ozet.update(pdf=True, toplam_sayfa=toplam_sayfa)
+            ISLER[is_id].update(durum="bitti", asama="Tamamlandı", yuzde=100, sonuc=ozet)
     except KullaniciHatasi as e:
         ISLER[is_id].update(durum="hata", hata=str(e))
     except Exception:
         traceback.print_exc()
         ISLER[is_id].update(durum="hata", hata="Denetim sırasında beklenmeyen bir hata oluştu. Siyah penceredeki mesaja bakın.")
     finally:
-        if pdf_yolu:
-            pdf_yolu.unlink(missing_ok=True)              # yüklenen PDF saklanmaz
+        if pdf_yolu and is_id not in PDFLER:
+            pdf_yolu.unlink(missing_ok=True)              # hata olduysa PDF hemen silinir
 
 
 def is_baslat(**kwargs):
@@ -114,13 +126,16 @@ def is_baslat(**kwargs):
         eski, _ = ISLER.popitem(last=False)
         for uzanti in ("csv", "html"):
             (GECICI / f"{eski}.{uzanti}").unlink(missing_ok=True)
+        eski_pdf = PDFLER.pop(eski, None)               # eski işlerin PDF'leri silinir
+        if eski_pdf:
+            eski_pdf.unlink(missing_ok=True)
     threading.Thread(target=calistir, args=(is_id,), kwargs=kwargs, daemon=True).start()
     return jsonify({"is_id": is_id})
 
 
 @app.get("/")
 def ana_sayfa():
-    return render_template("index.html", max_mb=MAX_PDF_MB)
+    return render_template("index.html", max_mb=MAX_PDF_MB, surum=SURUM)
 
 
 @app.post("/denetle/pdf")
@@ -170,6 +185,49 @@ def indir(is_id, tur):
     if not ID_BICIMI.match(is_id) or tur not in ("csv", "html") or not yol.exists():
         abort(404)
     return send_file(yol, as_attachment=True, download_name=f"denetim_raporu.{tur}")
+
+
+def isin_pdfi(is_id) -> Path:
+    yol = PDFLER.get(is_id) if ID_BICIMI.match(is_id) else None
+    if not yol or not yol.exists():
+        abort(404)
+    return yol
+
+
+@app.get("/sayfa/<is_id>/<int:no>")
+def sayfa_resmi(is_id, no):
+    """Kitabın bir sayfasını resim olarak verir. ?k=kelime verilirse kelime sayfada sarıyla işaretlenir."""
+    kelime = request.args.get("k", "").strip()[:80]
+    with pymupdf.open(str(isin_pdfi(is_id))) as belge:
+        if not 1 <= no <= belge.page_count:
+            abort(404)
+        sayfa = belge[no - 1]
+        bulunan = []
+        if kelime:
+            # Önce kelimenin tamamı, bulunamazsa içindeki en uzun kelime aranır (noktalama bulgularında "gitti.Sonra").
+            adaylar = [kelime] + sorted(re.findall(r"[^\W\d_]{3,}", kelime), key=len, reverse=True)
+            for aday in adaylar:
+                bulunan = sayfa.search_for(aday, quads=True)
+                if bulunan:
+                    break
+            for dortgen in bulunan:
+                isaret = sayfa.add_highlight_annot(dortgen)
+                isaret.set_colors(stroke=(1, 0.82, 0.1))
+                isaret.update()
+        sayfa_yuksekligi = sayfa.rect.height
+        resim = sayfa.get_pixmap(matrix=pymupdf.Matrix(1.7, 1.7), annots=True).tobytes("png")
+    cevap = app.response_class(resim, mimetype="image/png")
+    cevap.headers["X-Isaretlenen"] = str(len(bulunan))
+    if bulunan:                                          # ilk işaretin sayfadaki yüksekliği (0-1): site oraya kaydırır
+        cevap.headers["X-Konum"] = f"{bulunan[0].rect.y0 / sayfa_yuksekligi:.4f}"
+    cevap.headers["Cache-Control"] = "private, max-age=600"
+    return cevap
+
+
+@app.get("/pdf/<is_id>")
+def pdf_dosyasi(is_id):
+    """Denetlenen PDF'i tarayıcıda açar (#page=N ile istenen sayfaya gidilir)."""
+    return send_file(isin_pdfi(is_id), mimetype="application/pdf", download_name="kitap.pdf")
 
 
 @app.errorhandler(413)

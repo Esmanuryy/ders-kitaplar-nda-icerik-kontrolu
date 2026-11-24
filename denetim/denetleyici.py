@@ -125,7 +125,7 @@ class Denetleyici:
         return sonuc
 
     def paragraf_denetle(self, sayfa, par_no, metin, tdk=None, belge_ozel=frozenset(), onceki_matematik=False,
-                         sayisal=False) -> list[Bulgu]:
+                         sayisal=False, pdf=False) -> list[Bulgu]:
         """Bir paragrafı üç kritere göre denetler: argo, yazım (büyük/küçük harf dahil), noktalama.
         sayisal: sayısal ders kitabı; işlem ve formül içeren paragraflar matematik ifadesi sayılır."""
         if KOD_RE.search(metin):                     # kod ve formül satırları denetlenmez
@@ -135,13 +135,13 @@ class Denetleyici:
         matematik = MATEMATIK in metin or (sayisal and bool(FORMUL_RE.search(metin)))
         metin = metin.replace(MATEMATIK, " ")
         bulgular = kelimeleri_denetle(sayfa, par_no, metin, self.listeler, self.sozluk, tdk, belge_ozel,
-                                      matematik or onceki_matematik)
+                                      matematik or onceki_matematik, pdf)
         gorulen = {(b.kelime, b.baglam) for b in bulgular}
         bulgular += [b for b in harf_hatalari_bul(sayfa, par_no, metin, self.listeler.ozel_isimler, self.sozluk,
-                                                  matematik or onceki_matematik)
+                                                  matematik or onceki_matematik, pdf)
                      if (b.kelime, b.baglam) not in gorulen]
         if not matematik:
-            bulgular += noktalama_bul(sayfa, par_no, metin, self.sozluk)
+            bulgular += noktalama_bul(sayfa, par_no, metin, self.sozluk, pdf)
         return bulgular
 
     def okunamaz_mi(self, metin: str) -> bool:
@@ -203,7 +203,8 @@ class Denetleyici:
             if pdf_metni and self.okunamaz_mi(metin.replace(MATEMATIK, " ")):
                 okunamayan.append(sayfa)
             else:
-                ham += self.paragraf_denetle(sayfa, par_no, metin, tdk, belge_ozel, onceki_matematik, sayisal)
+                ham += self.paragraf_denetle(sayfa, par_no, metin, tdk, belge_ozel, onceki_matematik, sayisal,
+                                             pdf_metni)
             if i % 50 == 0 or i == len(paragraflar):
                 ilerleme(f"Metin denetleniyor (paragraf {i}/{len(paragraflar)})", 62 + int(36 * i / len(paragraflar)))
         sonuc.bulgular = bulgulari_birlestir(ham)

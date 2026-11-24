@@ -53,3 +53,21 @@ rusça
 farsça
 ispanyolca
 italyanca
+
+# --- Kişi adları (yaygın) ---
+ahmet
+mehmet
+mustafa
+ayşe
+fatma
+zeynep
+elif
+emine
+hasan
+hüseyin
+ibrahim
+ismail
+osman
+murat
+ömer
+yusuf

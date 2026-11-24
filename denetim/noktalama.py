@@ -6,7 +6,7 @@ Fazladan boşluklar (PDF'te sayfa düzeninden de oluşabildiği için) hata say�
 
 import re
 
-from .metin import BUYUK_HARF, HARFLER, KELIME_RE, KUCUK_HARF, adresleri_ort, baglam_al, tr_kucuk
+from .metin import BUYUK_HARF, HARFLER, KELIME_RE, KUCUK_HARF, UZATMA_RE, adresleri_ort, baglam_al, tr_kucuk
 from .rapor import Bulgu
 
 H = "A-Za-zÇĞİÖŞÜçğıöşüÂâÎîÛû"
@@ -16,7 +16,7 @@ KURALLAR = [
     (re.compile(rf"(?:(?<=[{H}]{{2}})|(?<=[{H}] )),(?=[{H}])|[;!?](?=[{H}])|(?<![\d\s]):(?=[{H}])"),
      "Virgül, noktalı virgül, iki nokta, soru ve ünlem işaretinden sonra bir boşluk bırakılır.",
      lambda s: s + " "),
-    (re.compile(r"(?<=[a-zçğıöşü]{2})(?<!vb)(?<!vs)(?<!Prof)(?<!Doç)(?<!Yrd)(?<!Öğr)(?<!Arş)(?<!Uzm)\.(?=[A-ZÇĞİÖŞÜ]"
+    (re.compile(r"(?<=[a-zçğıöşü]{2})(?<!vb)(?<!vs)(?<!Prof)(?<!Doç)(?<!Yrd)(?<!Öğr)(?<!Arş)(?<!Uzm)(?<!Cilt)\.(?=[A-ZÇĞİÖŞÜ]"
                 r"|(?!(?:pdf|docx?|txt|html?|py|jpe?g|png|xlsx?|js|json|css|ts|java|cpp|xml|sql)\b)(?![a-zçğıöşü]+\()[a-zçğıöşü]{2})"),
      "Cümle sonundaki noktadan sonra bir boşluk bırakılır.",
      lambda s: ". "),
@@ -85,7 +85,9 @@ def dogrusu(metin: str, bas: int, son: int, yeni: str) -> str:
     return f"«{cevre(metin, bas, son, yeni)}»"
 
 
-def noktalama_bul(sayfa, par_no, metin, sozluk) -> list[Bulgu]:
+def noktalama_bul(sayfa, par_no, metin, sozluk, pdf=False) -> list[Bulgu]:
+    """pdf: metin PDF'ten çıkarıldı. PDF'te paragrafın sonu sayfa, sütun ya da tablo yüzünden kesilmiş olabilir;
+    bu yüzden "cümlenin sonunda nokta yok" denetimi PDF'te yapılmaz (emin olunamaz)."""
     if harf_harf_yazilmis(metin):
         return []
     bulgular = []
@@ -97,16 +99,19 @@ def noktalama_bul(sayfa, par_no, metin, sozluk) -> list[Bulgu]:
 
     for kural, aciklama, duzelt in KURALLAR:
         for m in kural.finditer(tarama):
+            if m.group()[0] in "!?" and UZATMA_RE.search(re.search(r"\S*$", tarama[:m.start()]).group()):
+                continue                                         # İnanılmaaaaz!!: bilerek uzatılmış söz
             ekle(cevre(metin, m.start(), m.end(), m.group()), aciklama,
                  "Doğrusu: " + dogrusu(metin, m.start(), m.end(), duzelt(m.group())), m.start(), m.end())
 
     # Açılıp kapanmayan parantez ve tırnak ("a)" gibi madde işaretleri yüzünden yalnızca açık kalan aranır)
-    if tarama.count("(") + tarama.count("[") > tarama.count(")") + tarama.count("]"):   # (4,5] aralığı hata değil
+    # PDF'te parantez ve tırnak sayfa/sütun yüzünden başka paragrafta kapanabilir; orada denetlenmez.
+    if not pdf and tarama.count("(") + tarama.count("[") > tarama.count(")") + tarama.count("]"):   # (4,5] aralığı hata değil
         bas = tarama.rfind("(")
         ekle("(", "Açılan parantez kapatılmamış. Her açılan parantez kapatılmalıdır.",
              "Parantezin içindeki ifade bittiği yere ) koyun.", bas, bas + 1)
     # Birden çok paragraflık alıntı “… ile başlayıp …” ile biter; paragrafın başı ya da sonu tırnaksa hata sayılmaz.
-    if (sum(tarama.count(t) for t in '"“”') % 2 and not re.match(r'^\W*[“"]', tarama)
+    if (not pdf and sum(tarama.count(t) for t in '"“”') % 2 and not re.match(r'^\W*[“"]', tarama)
             and not re.search(r'[”"]\W*$', tarama)):
         bas = max(tarama.rfind('"'), tarama.rfind("“"), tarama.rfind("”"))
         ekle(metin[bas], "Tırnak işareti açılmış ama kapatılmamış (ya da kapatılmış ama açılmamış).",
@@ -116,17 +121,17 @@ def noktalama_bul(sayfa, par_no, metin, sozluk) -> list[Bulgu]:
     # ("Mehmet Âkif Ersoy") ve sayfa düzeni yüzünden kesilmiş cümleler ("sınır çizgisi") hata sayılmaz.
     son_cumle = KELIME_RE.findall(re.split(r"[.!?…]\s", tarama)[-1])
     buyuk = sum(1 for k in son_cumle if k[0].isupper())
-    if (len(son_cumle) >= 6 and buyuk * 2 < len(son_cumle) and metin[-1].isalnum() and not ALT_YAZI_RE.match(metin)
+    if (not pdf and len(son_cumle) >= 6 and buyuk * 2 < len(son_cumle) and metin[-1].isalnum() and not ALT_YAZI_RE.match(metin)
             and sozluk.yuklem_olabilir_mi(tr_kucuk(son_cumle[-1]))):
         ekle(son_cumle[-1], "Cümle bitmiş ama sonuna nokta konmamış. Tamamlanmış cümlenin sonuna nokta konur.",
              "Doğrusu: " + dogrusu(metin, len(metin), len(metin), "."), len(metin) - len(son_cumle[-1]), len(metin))
 
-    if metin.endswith(",") and len(son_cumle) >= 4 and sozluk.yuklem_olabilir_mi(tr_kucuk(son_cumle[-1])):
+    if not pdf and metin.endswith(",") and len(son_cumle) >= 4 and sozluk.yuklem_olabilir_mi(tr_kucuk(son_cumle[-1])):
         ekle(son_cumle[-1] + ",", "Cümle virgülle bitmiş. Tamamlanmış cümlenin sonuna nokta konur.",
              "Doğrusu: " + dogrusu(metin, len(metin) - 1, len(metin), "."), len(metin) - 1, len(metin))
 
     # İki cümle arasında unutulan nokta: yüklemden sonra büyük harfle yeni cümle başlıyor (gitti Sonra)
-    for m in re.finditer(rf"(?<![{HARFLER}])([{KUCUK_HARF}]{{3,}}) ([{BUYUK_HARF}][{KUCUK_HARF}]+)(?![{HARFLER}'’])", tarama):
+    for m in ([] if pdf else re.finditer(rf"(?<![{HARFLER}])([{KUCUK_HARF}]{{3,}}) ([{BUYUK_HARF}][{KUCUK_HARF}]+)(?![{HARFLER}'’])", tarama)):
         onceki, sonraki = m.group(1), tr_kucuk(m.group(2))
         if (not re.match(rf"[ ]+[{BUYUK_HARF}]", tarama[m.end():])       # Küçük Bey: çok kelimeli ad
                 and sozluk.yuklem_olabilir_mi(onceki) and sozluk.gecerli_mi(sonraki)
@@ -139,6 +144,7 @@ def noktalama_bul(sayfa, par_no, metin, sozluk) -> list[Bulgu]:
     for onceki, simdiki in zip(kelimeler, kelimeler[1:]):
         if (tr_kucuk(onceki.group()) == tr_kucuk(simdiki.group()) and len(onceki.group()) > 1
                 and metin[onceki.end():simdiki.start()].strip() == ""
+                and not (onceki.group()[0].isupper() and simdiki.group()[0].isupper())   # tablo başlığı: Temanın Temanın
                 and not ikileme_olabilir(tr_kucuk(onceki.group()), sozluk)):
             ekle(f"{onceki.group()} {simdiki.group()}", "Aynı kelime yanlışlıkla iki kez yazılmış.",
                  f"Doğrusu: «{onceki.group()}»", onceki.start(), simdiki.end())

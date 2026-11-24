@@ -165,12 +165,29 @@
     hedef.append(metin.slice(0, i), el("mark", null, metin.slice(i, i + kelime.length)), metin.slice(i + kelime.length));
   }
 
+  // Sayfa numarası: PDF denetlendiyse tıklanınca kitabın o sayfası açılır.
+  function sayfaDugmesi(no, b, metin) {
+    if (!sonuc.pdf) return el("span", null, metin);
+    const d = el("button", "sayfa-btn", metin);
+    d.type = "button";
+    d.title = "Kitabın " + no + ". sayfasını aç";
+    d.addEventListener("click", () => sayfaAc(Number(no), b));
+    return d;
+  }
+
   function kartYap(b) {
     const k = KRITER[b.kriter];
     const kart = el("article", "bulgu " + k.sinif);
     const ust = el("div", "bulgu-ust");
-    ust.append(el("span", "rozet " + k.sinif, k.ad), el("span", null, "Sayfa " + b.sayfa));
-    if (b.adet > 1) ust.append(el("span", null, b.adet + " kez geçiyor (sayfa " + b.sayfalar + ")"));
+    ust.append(el("span", "rozet " + k.sinif, k.ad), sayfaDugmesi(b.sayfa, b, "Sayfa " + b.sayfa));
+    if (b.adet > 1) {
+      const tekrar = el("span", "tekrar", b.adet + " kez geçiyor: ");
+      String(b.sayfalar).split(",").map((s) => s.trim()).filter(Boolean).forEach((s, i) => {
+        if (i) tekrar.append(", ");
+        tekrar.append(sayfaDugmesi(s, b, s));
+      });
+      ust.append(tekrar);
+    }
     const govde = el("div", "bulgu-govde");
     const sol = el("div");
     sol.append(el("div", "kelime", b.kelime));
@@ -277,6 +294,88 @@
     $("#yeni-btn").classList.remove("gizli");
     bolum.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
+  // ---------------- Sayfa görüntüleyici ----------------
+  let gAcik = null, gSonOdak = null;
+
+  function bulguSayfalari(b) {
+    return String(b.sayfalar || b.sayfa).split(",").map((s) => Number(s.trim())).concat(Number(b.sayfa));
+  }
+
+  function sayfaAc(no, b) {
+    gSonOdak = document.activeElement;
+    gAcik = { no, b };
+    $("#gosterici").hidden = false;
+    document.body.classList.add("kilitli");
+    sayfaCiz();
+    $("#g-kapat").focus();
+  }
+
+  function sayfaCiz() {
+    const { no, b } = gAcik, son = sonuc.toplam_sayfa || no;
+    const asilSayfa = bulguSayfalari(b).includes(no);
+    $("#g-baslik").textContent = "Sayfa " + no + " / " + son;
+    $("#g-baglam").replaceChildren();
+    if (no === Number(b.sayfa)) vurgula($("#g-baglam"), b.baglam, b.kelime);
+    $("#g-durum").textContent = "Yükleniyor…";
+    $("#g-onceki").disabled = no <= 1;
+    $("#g-sonraki").disabled = no >= son;
+    $("#g-pdf").href = "/pdf/" + sonuc.id + "#page=" + no;
+    const resim = $("#g-resim");
+    $("#g-yukleniyor").classList.remove("gizli");
+    resim.classList.add("yukleniyor");
+    const adres = "/sayfa/" + sonuc.id + "/" + no + (asilSayfa ? "?k=" + encodeURIComponent(b.kelime) : "");
+    fetch(adres).then((r) => {
+      if (!r.ok) throw new Error();
+      const sayi = Number(r.headers.get("X-Isaretlenen") || 0);
+      if (gAcik) gAcik.konum = r.headers.get("X-Konum");
+      if (gAcik && gAcik.no === no) {
+        $("#g-durum").textContent = !asilSayfa ? "“" + b.kelime + "” bu sayfada geçmiyor."
+          : sayi ? "“" + b.kelime + "” sayfada sarıyla işaretlendi."
+          : "“" + b.kelime + "” sayfada otomatik işaretlenemedi; üstteki cümleye bakın.";
+      }
+      return r.blob();
+    }).then((blob) => {
+      if (!gAcik || gAcik.no !== no) return;           // bu arada başka sayfaya geçildi
+      if (resim.src.startsWith("blob:")) URL.revokeObjectURL(resim.src);
+      resim.onload = () => {                          // işaretli kelime görünsün diye o yere kaydırılır
+        const govde = $("#g-govde"), konum = gAcik && gAcik.konum;
+        govde.scrollTop = konum ? Math.max(0, resim.offsetTop + resim.offsetHeight * Number(konum) - govde.clientHeight / 3) : 0;
+      };
+      resim.src = URL.createObjectURL(blob);
+      resim.alt = "Kitabın " + no + ". sayfası";
+    }).catch(() => {
+      $("#g-durum").textContent = "Sayfa açılamadı. Site yeniden başlatıldıysa kitabı tekrar denetleyin.";
+    }).finally(() => {
+      $("#g-yukleniyor").classList.add("gizli");
+      resim.classList.remove("yukleniyor");
+    });
+  }
+
+  function sayfaKapat() {
+    if (!gAcik) return;
+    gAcik = null;
+    $("#gosterici").hidden = true;
+    document.body.classList.remove("kilitli");
+    if (gSonOdak) gSonOdak.focus();
+  }
+
+  $("#g-kapat").addEventListener("click", sayfaKapat);
+  $("#g-onceki").addEventListener("click", () => { if (gAcik.no > 1) { gAcik.no--; sayfaCiz(); } });
+  $("#g-sonraki").addEventListener("click", () => { gAcik.no++; sayfaCiz(); });
+  $("#gosterici").addEventListener("click", (e) => { if (e.target.id === "gosterici") sayfaKapat(); });
+  document.addEventListener("keydown", (e) => {
+    if (!gAcik) return;
+    if (e.key === "Escape") sayfaKapat();
+    else if (e.key === "ArrowLeft" && !$("#g-onceki").disabled) $("#g-onceki").click();
+    else if (e.key === "ArrowRight" && !$("#g-sonraki").disabled) $("#g-sonraki").click();
+    else if (e.key === "Tab") {                       // odak pencerenin içinde kalsın
+      const odak = [...$("#gosterici").querySelectorAll("button:not(:disabled), a[href]")];
+      const ilk = odak[0], son = odak[odak.length - 1];
+      if (e.shiftKey && document.activeElement === ilk) { e.preventDefault(); son.focus(); }
+      else if (!e.shiftKey && document.activeElement === son) { e.preventDefault(); ilk.focus(); }
+    }
+  });
 
   // ---------------- Olaylar ----------------
   $("#sekme-pdf").addEventListener("click", () => sekmeSec(true));

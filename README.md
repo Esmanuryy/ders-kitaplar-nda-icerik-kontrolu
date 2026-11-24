@@ -16,6 +16,8 @@ PDF formatındaki bir ders kitabını okur. Argo ifadeleri, yazım hatalarını 
 - Her kelime tek tek taranır. Anlamına bakılmaz; kelimenin yazılışına ve sözlük kaydına bakılır.
 - Özel isimler (Newton, Ankara, Dr. Gülbike YILDIRIM) ayrılır, hata sayılmaz ve ayrı listelenir.
 - Aynı hata kitapta defalarca geçse de bir kez listelenir; kaç kez ve hangi sayfalarda geçtiği yazılır.
+- Sonuçlarda sayfa numarasına tıklanınca kitabın o sayfası sitede açılır ve hatalı kelime sarıyla işaretlenir. Önceki/sonraki sayfaya geçilebilir, "PDF'te aç" ile kitap o sayfadan açılır.
+- Emin olunamayan yerde hata yazılmaz. Sözlükte olmayan bir kelime ancak bilinen bir kelimenin yazım hatasına benziyorsa (guzel → güzel) bildirilir. Alıntılardaki eski yazımlar, açıklaması verilen terimler ("sıçgan (sıçan)", "toygun denilen"), yabancı adlar ve okunuşları ("Weser (Viza)"), ad listeleri ve PDF'te bölünmüş kelime parçaları hata sayılmaz. PDF'te sayfa ve sütun yüzünden güvenilir olmayan kurallar (cümle sonunda nokta yok, kapanmamış tırnak/parantez, cümle başı küçük harf) yalnızca yapıştırılan metinde uygulanır.
 - Kitabı yüklerken **kitap türü** seçilir:
   - **Sözel ders** (Türkçe, tarih, coğrafya, hayat bilgisi…): bütün kurallar uygulanır.
   - **Sayısal ders** (matematik, fizik, kimya, biyoloji…): formüller, işlem işaretleri ve değişkenler (x, f(x), 2x) hata sayılmaz; formül olan paragraflarda noktalama denetlenmez. Örnek çözümler ("1. ÖRNEK", "Çözüm"), "Uygulama", "Alıştırmalar" ve "Kontrol Noktası" bölümleri atlanır.
@@ -89,6 +91,8 @@ Hatalı cümlelerde hatanın bulunduğunu, doğru cümlelerde yanlış alarm ç�
 - Fazladan boşluklar hata sayılmaz.
 - Sözlükte olmayan terimler ve eski kelimeler ("yakantop", "gulam") yazım hatası olarak işaretlenebilir. TDK açıkken bu durum azalır. Doğru olduğu bilinen kelimeler `veri/izinli_kelimeler.txt` dosyasına eklenebilir.
 - Metni PDF'ten bozuk çıkan paragraflar denetlenmez; site bu sayfaları ayrıca bildirir.
+- Yüklenen PDF, sayfaları gösterilebilsin diye yalnızca bu bilgisayarda geçici klasörde tutulur; site kapanınca silinir.
+- TDK kapalıyken (internet yoksa) eski Türkçe terimler (bodun, toygun) ve bazı bilimsel terimler sözlükte bulunmadığı için hata olarak çıkabilir. TDK açıkken bu durum azalır.
 - Taranmış (resim) PDF'ler okunamaz; önce OCR gerekir.
 - TDK sitesi yoğun istekte cevap vermeyebilir. Cevaplar `veri/tdk_onbellek.json` dosyasına kaydedilir; aynı kitabın ikinci taraması çok daha hızlıdır.
 

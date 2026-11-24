@@ -96,7 +96,13 @@ Dr. Gülbike YILDIRIM ve Prof.Dr. Mutlu YILMAZ kitabı hazırladı. Kur'an ve ş
 Bu fonksiyon negatif olmayan bir sayı atar. Bir iple sallanabilirsiniz. Ama bu konu önemlidir.
 Zekâ, yegâne ve şikâyet kelimeleri şapkalı yazılabilir. Konu  : Trafik kuralları
 Fazladan  boşluklar hata sayılmaz . Kitap ( 2017 ) yılında basıldı.
-Bir kaç kişi geldi ve hiç bir sorun çıkmadı. lhlamur ağacı çok güzel kokar.""".split("\n")
+Bir kaç kişi geldi ve hiç bir sorun çıkmadı. lhlamur ağacı çok güzel kokar.
+Ren, Elbe (Ebi) ve Weser (Viza) nehirleri buradan geçer. Kiel (Kiıl) Kanalı ticaret için önemlidir.
+Gelibolu, Edirne, Filibe, Serez, Ferye ve Üsküp alındı. Kuşar şehrinin yakınında Isık halkı yaşardı.
+Mekteb-i Tıbbiyye-i Şahane öğrencileri Kitâb-ı Bahriyye eserini okudu. Kovid-19 salgını yaşandı.
+Yazarlar: Ali BAYANDUR, Ali HEMDE
+5.3. STRATEJIK VE KRITIK MADENLER
+Fizikte Mehmet Refi’i ve minyatürde Levnî tanınmış isimlerdir.""".split("\n")
 
 
 class SahteTDK:

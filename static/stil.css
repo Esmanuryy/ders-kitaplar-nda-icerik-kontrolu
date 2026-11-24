@@ -200,6 +200,31 @@ mark { background: var(--vurgu); color: var(--metin); padding: 0 2px; border-rad
 .bos { text-align: center; padding: 36px 10px; color: var(--iyi); font-weight: 600; }
 .daha { margin-top: 16px; text-align: center; }
 
+/* Tıklanabilir sayfa numarası */
+.sayfa-btn { border: 0; background: none; padding: 0; font: inherit; color: var(--kirmizi-koyu); font-weight: 600; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--kirmizi-cizgi); text-underline-offset: 3px; }
+.sayfa-btn:hover { color: var(--kirmizi); text-decoration-color: currentColor; }
+
+/* ---------------- Sayfa görüntüleyici ---------------- */
+body.kilitli { overflow: hidden; }
+.gosterici { position: fixed; inset: 0; z-index: 20; background: rgba(20, 22, 26, .6); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.gosterici[hidden] { display: none; }
+.g-kutu { position: relative; background: var(--kart); border-radius: 12px; width: min(920px, 100%); height: 100%; display: flex; flex-direction: column; box-shadow: var(--golge-buyuk); overflow: hidden; }
+.g-ust { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 64px 14px 18px; border-bottom: 1px solid var(--cizgi); }
+.g-ust h2 { font-size: 1.1rem; }
+.g-durum { color: var(--soluk); font-size: .85rem; margin-top: 2px; }
+.g-araclar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.g-araclar .btn:disabled { background: var(--zemin); color: var(--cok-soluk); border-color: var(--cizgi); box-shadow: none; cursor: not-allowed; }
+.g-kapat { position: absolute; top: 12px; right: 14px; border: 0; background: var(--zemin); width: 36px; height: 36px; border-radius: 8px; font-size: 1.4rem; line-height: 1; cursor: pointer; color: var(--metin); }
+.g-kapat:hover { background: var(--cizgi); }
+.g-baglam { padding: 10px 18px; background: var(--zemin); border-bottom: 1px solid var(--cizgi); color: var(--soluk); font-size: .9rem; overflow-wrap: anywhere; }
+.g-baglam:empty { display: none; }
+.g-govde { position: relative; overflow: auto; background: #e9ebee; padding: 16px; text-align: center; flex: 1; }
+.g-govde img { max-width: 100%; height: auto; background: #fff; box-shadow: var(--golge); transition: opacity .15s; }
+.g-govde img:not([src]) { display: none; }
+.g-govde img.yukleniyor { opacity: .35; }
+.g-govde .donen { position: absolute; top: 50%; left: 50%; margin: -10px 0 0 -10px; z-index: 1; }
+
 /* ---------------- Telefon ---------------- */
 @media (max-width: 640px) {
   .kap { padding: 0 16px; }
@@ -211,12 +236,15 @@ mark { background: var(--vurgu); color: var(--metin); padding: 0 2px; border-rad
   .arac-sag { width: 100%; flex-direction: column; }
   .ara, .arac-sag select { width: 100%; min-width: 0; }
   .sonuc-ust { align-items: flex-start; }
+  .gosterici { padding: 0; }
+  .g-kutu { border-radius: 0; }
+  .g-govde { padding: 8px; }
 }
 
 /* ---------------- Yazdırma ---------------- */
 @media print {
   body { background: #fff; }
-  #denetle, #yeni-btn, .indir, .arac, .daha, .bekle { display: none !important; }
+  #denetle, #yeni-btn, .indir, .arac, .daha, .bekle, .gosterici { display: none !important; }
   #sonuclar { margin-top: 0; }
   .kart, .bulgu, .ozet div { break-inside: avoid; box-shadow: none; border-color: #bbb; }
   .ust, .rozet, .ozet div, .ozet div::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
