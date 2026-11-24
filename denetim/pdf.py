@@ -23,7 +23,8 @@ BOZUK_YAZI_TIPLERI = [
 ]
 HARF_DUZELT = str.maketrans({" ": " ", " ": " ", " ": " ", " ": " ",
                              "ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl",
-                             "‐": "-", "‟": "'", "​": None, "‌": None, "﻿": None})
+                             "‐": "-", "‟": "'", "​": None, "‌": None, "﻿": None,
+                             chr(0xF0F5): "ı"})          # bazı Times New Roman gömmelerinde ı harfi
 BITTI_RE = re.compile(r"[.!?:;…][\"”’')\]]*$")
 MADDE_ISARETI = "•›>▪◦‣●○■□▶"
 MADDE_RE = re.compile(rf"^(?:[{MADDE_ISARETI}]|[–-]\s|\d+[.)]\s|[a-zA-Z]\)\s)")
@@ -35,6 +36,11 @@ EN_FAZLA_BIRLESIK = 400        # yarım kalan tırnak/parantez için birleştiri
 # oluşuyorsa denetlenir, harfleri eksik ya da karışık okunduysa atlanır (Denetleyici.suslu_basliklari_ayikla).
 SUSLU = "\ue001"
 BOLUNME = "\ue000"
+# Matematik ifadesinin yeri. Matematik yaz\u0131 tiplerindeki i\u015faretler (\u2208, \u222a, \u2229, { }) PDF'ten harf ya da noktalama
+# i\u015fareti gibi \u00e7\u0131kar ("a !A", "A ,B"). Bu yaz\u0131 tiplerindeki metnin yerine bu i\u015faret konur; b\u00f6yle paragraflarda
+# kelimeler denetlenir ama noktalama denetlenmez.
+MATEMATIK = chr(0xE002)
+MATEMATIK_YAZI_TIPI = re.compile(r"^(?:[A-Z]{6}\+)?(?:MM|Cambria-?Math|Symbol|Euclid|MT-?Extra|MathType|STIX|ESRI)", re.I)
 
 
 # Etkinlik bölümünün başladığını gösteren satırlar. Etkinliklerde öğrenciden düzeltmesi istenen yanlışlar bilerek
@@ -57,6 +63,7 @@ def harfleri_duzelt(metin: str) -> str:
 
 def blok_temizle(metin: str) -> str:
     """Satır sonu tirelemesini ve satır sonlarındaki boşlukları temizler."""
+    metin = re.sub(r"­[ \t]*\n\s*(?=[a-zçğıöşü])", BOLUNME, metin)        # yumuşak tire: mü-/hendislik
     metin = re.sub(r"­[ \t]*\n\s*", "", metin).replace("­", "")
     metin = re.sub(r"(?<=\w)-[ \t]*\n\s*(?:\d{1,3}\s+)?(?=[a-zçğıöşü])", BOLUNME, metin)   # kita-\nplar, pen- 2 cereden
     metin = re.sub(r"(?<=\w)(['’])[ \t]*\n\s*(?=[a-zçğıöşü])", r"\1", metin)                 # İzmir'\nde -> İzmir'de
@@ -155,7 +162,9 @@ def sayfa_bloklari(sayfa, etkinlik_atla=False) -> tuple[list[str], bool]:
     normal, suslu, gorulen, atilan = [], [], [], []
     for blok in sayfa.get_text("dict", flags=bayrak)["blocks"]:
         for l in blok.get("lines", []):
-            metin = "".join(s["text"] for s in l["spans"])
+            metin = "".join(MATEMATIK if MATEMATIK_YAZI_TIPI.match(s["font"]) and s["text"].strip() else s["text"]
+                            for s in l["spans"])
+            metin = re.sub(f"{MATEMATIK}+", MATEMATIK, metin)
             if not metin.strip():
                 continue
             x0, y0, x1, y1 = l["bbox"]
@@ -209,15 +218,23 @@ def sayfa_bloklari(sayfa, etkinlik_atla=False) -> tuple[list[str], bool]:
         if metin.startswith(SUSLU):                       # süslü başlık başka metne eklenmez
             parcalar.append({"ilk": (round(y0), x0), "x0": x0, "y0": y0, "x1": x1, "y1": y1, "metin": metin, "suslu": 1})
             continue
-        for p in reversed(parcalar):
-            if p.get("suslu"):
-                continue
-            ayni_satir = abs(y0 - p["y0"]) < yukseklik * 0.5 and -2 <= x0 - p["x1"] < yukseklik
-            alt_satir = (0 <= y0 - p["y1"] + yukseklik * 0.3 < yukseklik * 1.2
-                         and min(x1, p["x1"]) - max(x0, p["x0"]) > 0.3 * min(x1 - x0, p["x1"] - p["x0"]))
-            if ayni_satir or alt_satir:
-                p["metin"] += (" " if ayni_satir else "\n") + metin
-                p.update(x0=min(x0, p["x0"]) if ayni_satir else x0, y0=y0, x1=x1, y1=y1)
+        def alt_satir(p):
+            # Satır aralığı dar kitaplarda satır kutuları üst üste biner; alt satır yine de üsttekinin altında başlar.
+            return (y0 >= p["y0"] + yukseklik * 0.5
+                    and -0.5 * yukseklik <= y0 - p["y1"] + yukseklik * 0.3 < yukseklik * 1.2
+                    and min(x1, p["x1"]) - max(x0, p["x0"]) > 0.3 * min(x1 - x0, p["x1"] - p["x0"]))
+
+        def ayni_satir(p):
+            return abs(y0 - p["y0"]) < yukseklik * 0.5 and -2 <= x0 - p["x1"] < yukseklik
+
+        adaylar = [p for p in reversed(parcalar) if not p.get("suslu")]
+        # Üstteki satır tireyle bitiyorsa bu satır onun devamıdır; yanındaki başka bir sütuna eklenmez.
+        tireli = next((p for p in adaylar if p["metin"].rstrip().endswith(("-", "­")) and alt_satir(p)), None)
+        for p in ([tireli] if tireli else adaylar):
+            ayni = ayni_satir(p)
+            if ayni or alt_satir(p):
+                p["metin"] += (" " if ayni else "\n") + metin
+                p.update(x0=min(x0, p["x0"]) if ayni else x0, y0=y0, x1=x1, y1=y1)
                 break
         else:
             parcalar.append({"ilk": (round(y0), x0), "x0": x0, "y0": y0, "x1": x1, "y1": y1, "metin": metin})

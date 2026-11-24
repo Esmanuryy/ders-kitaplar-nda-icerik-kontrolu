@@ -147,7 +147,7 @@ class PdfOkuma(unittest.TestCase):
                 y += 15 if satir else 30
             belge.save(yol)
             belge.close()
-            metinler = [p[2] for p in pdf_paragraflari(str(yol))]
+            metinler = [D.bolunmus_kelimeleri_birlestir(p[2]) for p in pdf_paragraflari(str(yol))]
         self.assertIn("Öğrenciler kitaplarını okudu ve çok sevindi.", metinler)
         self.assertIn("Veriyi işlemek", metinler)
 

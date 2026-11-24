@@ -23,7 +23,7 @@ KURALLAR = [
     (re.compile(r"(?<![.!?…])\.\.(?![.…])"),
      "İki nokta yan yana kullanılmaz. Ya tek nokta ya da üç nokta (…) kullanılır.",
      lambda s: "."),
-    (re.compile(r"(?<!\.)\.{4}(?!\.)(?!\s*\d)"),
+    (re.compile(r"(?<=[^\s.])\.{4}(?!\.)(?!\s*\d)"),        # ".... tane" boşluk doldurma noktalarıdır
      "Üç noktadan fazla nokta kullanılmaz.",
      lambda s: "..."),
     (re.compile(r"[,;:][,;:.]"),
@@ -32,7 +32,7 @@ KURALLAR = [
     (re.compile(r"!{2,}|\?{2,}"),
      "Ders kitabı dilinde ünlem ya da soru işareti tek kullanılır.",
      lambda s: s[0]),
-    (re.compile(rf"(?<=[{H}]{{4}})\((?=[^)]*\s)"),
+    (re.compile(rf"(?<=[{H}]{{4}})\((?=[^)]*\s)(?![a-zA-Z]\s*[,)])"),     # Kesiştir(f, g) gibi fonksiyonlar hariç
      "Açılan parantezden önce bir boşluk bırakılır.",
      lambda s: " ("),
     (re.compile(r"\)(?=[a-zçğıöşü]{3,})"),

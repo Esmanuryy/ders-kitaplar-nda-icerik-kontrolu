@@ -30,7 +30,7 @@ ROMA_RAKAMI_RE = re.compile(r"^[IVXLCDM]+$")
 KISALTMALAR = frozenset("""vb vs vd bkz örn ör sf s no dr prof doç yy mö ms mah cad sok tel yak krş bk çev hz sn dk ed
     yay bs ss md fak müh uzm yrd öğr arş""".split())
 # Ölçü birimleri: sözlükte yoktur ama yazım hatası değildir
-BIRIMLER = frozenset("km cm mm kg mg ml lt kcal cal kwh mw kw mhz ghz gb mb kb tb ha da".split())
+BIRIMLER = frozenset("km cm mm kg mg ml lt kcal cal kwh mw kw mhz ghz gb mb kb tb ha da ppm".split())
 
 
 def tr_kucuk(s: str) -> str:

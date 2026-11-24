@@ -17,7 +17,7 @@ from .kelime import BUYUK_DENETIM_UZUNLUK, kelimeleri_denetle, tdk_adaylari
 from .metin import HARFLER, KELIME_RE, KOD_RE, adresleri_ort, kelime_govdesi, tr_kucuk
 from .noktalama import noktalama_bul
 from .ozel_isim import ozel_isimleri_ayir
-from .pdf import BOLUNME, SUSLU, metin_paragraflari, pdf_paragraflari
+from .pdf import BOLUNME, MATEMATIK, SUSLU, metin_paragraflari, pdf_paragraflari
 from .rapor import Bulgu, bulgulari_birlestir
 from .sozluk import Sozluk, liste_oku, yanlis_sozlugu_oku
 from .tdk import TDK, OnbellektenTDK, tdk_guvenilir_mi, toplu_sorgula
@@ -78,6 +78,9 @@ class Denetleyici:
                 return sol + sag
             if self.sozluk.dogru_yazilmis_mi(tr_kucuk(sol)) and self.sozluk.dogru_yazilmis_mi(tr_kucuk(sag)):
                 return f"{sol}-{sag}"
+            if len(sag) >= 3 and self.sozluk.dogru_yazilmis_mi(tr_kucuk(sag)):
+                # "mü-" + "hesaplarken": alt satır başka bir sütundan gelmiş; kelimenin devamı değil.
+                return f"{sol}- {sag}"
             return sol + sag
         metin = re.sub(rf"([{HARFLER}]+){BOLUNME}([{HARFLER}]+)", karar, metin).replace(BOLUNME, "")
 
@@ -86,7 +89,24 @@ class Denetleyici:
         def satir_numarali(m):
             birlesik = m.group(1) + m.group(3)
             return birlesik if self.sozluk.dogru_yazilmis_mi(tr_kucuk(birlesik)) else m.group(0)
-        return re.sub(rf"([{HARFLER}]+)- (\d{{1,3}} )?([a-zçğıöşü]+)", satir_numarali, metin)
+        metin = re.sub(rf"([{HARFLER}]+)- (\d{{1,3}} )?([a-zçğıöşü]+)", satir_numarali, metin)
+        return self.ayrik_kelimeleri_birlestir(metin)
+
+    def ayrik_kelimeleri_birlestir(self, metin: str) -> str:
+        """PDF'te iki yazı parçası arasına fazladan boşluk girebilir: "oldu ğundan", "G erçek", "yü rütebilmeniz".
+        Parçalardan biri sözlükte yoksa ve birleşince doğru bir kelime oluyorsa birleştirilir. İki parça da doğru
+        kelimeyse ("bir kaç", "her şey") dokunulmaz; kelimeler anlamına göre birleştirilmez."""
+        parcalar = re.split(rf"([{HARFLER}]+)", metin)
+        dogru = lambda k: self.sozluk.dogru_yazilmis_mi(tr_kucuk(k))
+        i = 1
+        while i + 2 < len(parcalar):
+            sol, ara, sag = parcalar[i], parcalar[i + 1], parcalar[i + 2]
+            if (ara == " " and sag[0].islower() and not (sol.isupper() and len(sol) > 1)
+                    and not (dogru(sol) and dogru(sag)) and dogru(sol + sag)):
+                parcalar[i:i + 3] = [sol + sag]
+                continue
+            i += 2
+        return "".join(parcalar)
 
     def suslu_basliklari_ayikla(self, paragraflar) -> list:
         """Harf harf yazılmış süslü başlıklar (OYUN DÜNYASI) bütün kelimeleri sözlükte bulunursa denetlenir.
@@ -101,15 +121,22 @@ class Denetleyici:
             sonuc.append((s, n, m))
         return sonuc
 
-    def paragraf_denetle(self, sayfa, par_no, metin, tdk=None, belge_ozel=frozenset()) -> list[Bulgu]:
+    def paragraf_denetle(self, sayfa, par_no, metin, tdk=None, belge_ozel=frozenset(), onceki_matematik=False) -> list[Bulgu]:
         """Bir paragrafı üç kritere göre denetler: argo, yazım (büyük/küçük harf dahil), noktalama."""
         if KOD_RE.search(metin):                     # kod ve formül satırları denetlenmez
             return []
-        bulgular = kelimeleri_denetle(sayfa, par_no, metin, self.listeler, self.sozluk, tdk, belge_ozel)
+        # Matematik ifadesi olan paragrafta işaretler PDF'ten harf ya da virgül gibi çıkar: kelimeler denetlenir,
+        # noktalama denetlenmez.
+        matematik = MATEMATIK in metin
+        metin = metin.replace(MATEMATIK, " ")
+        bulgular = kelimeleri_denetle(sayfa, par_no, metin, self.listeler, self.sozluk, tdk, belge_ozel,
+                                      matematik or onceki_matematik)
         gorulen = {(b.kelime, b.baglam) for b in bulgular}
-        bulgular += [b for b in harf_hatalari_bul(sayfa, par_no, metin, self.listeler.ozel_isimler, self.sozluk)
+        bulgular += [b for b in harf_hatalari_bul(sayfa, par_no, metin, self.listeler.ozel_isimler, self.sozluk,
+                                                  matematik or onceki_matematik)
                      if (b.kelime, b.baglam) not in gorulen]
-        bulgular += noktalama_bul(sayfa, par_no, metin, self.sozluk)
+        if not matematik:
+            bulgular += noktalama_bul(sayfa, par_no, metin, self.sozluk)
         return bulgular
 
     def okunamaz_mi(self, metin: str) -> bool:
@@ -156,11 +183,15 @@ class Denetleyici:
         belge_ozel = frozenset(sonuc.ozel_adlar)
 
         ham, okunamayan = [], []
+        onceki = (None, "")
         for i, (sayfa, par_no, metin) in enumerate(paragraflar, start=1):
-            if self.okunamaz_mi(metin):
+            # Aynı sayfada hemen önceki paragraf formülle bitiyorsa bu paragraf formülün devamı olabilir.
+            onceki_matematik = onceki[0] == sayfa and MATEMATIK in onceki[1]
+            onceki = (sayfa, metin)
+            if self.okunamaz_mi(metin.replace(MATEMATIK, " ")):
                 okunamayan.append(sayfa)
             else:
-                ham += self.paragraf_denetle(sayfa, par_no, metin, tdk, belge_ozel)
+                ham += self.paragraf_denetle(sayfa, par_no, metin, tdk, belge_ozel, onceki_matematik)
             if i % 50 == 0 or i == len(paragraflar):
                 ilerleme(f"Metin denetleniyor (paragraf {i}/{len(paragraflar)})", 62 + int(36 * i / len(paragraflar)))
         sonuc.bulgular = bulgulari_birlestir(ham)

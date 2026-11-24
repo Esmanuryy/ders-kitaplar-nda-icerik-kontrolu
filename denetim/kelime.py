@@ -36,7 +36,37 @@ def yazim_onerileri(kucuk, sozluk, tdk) -> list[str]:
     return list(dict.fromkeys(oneriler + adaylar[:3]))
 
 
-def kelimeleri_denetle(sayfa, par_no, metin, veri, sozluk, tdk=None, belge_ozel=frozenset()) -> list[Bulgu]:
+# Türkçede yazarken sık karıştırılan harfler: noktasız/şapkasız yazım ve sert-yumuşak ünsüzler (kitablar, guzel)
+KARISAN_HARFLER = [set(c) for c in ("ıi", "oö", "uü", "sş", "cç", "gğk", "bp", "dt", "aâ", "iî", "uû")]
+
+
+def yazim_hatasina_benzer(kelime: str, oneri: str) -> bool:
+    """Kelime, önerilen kelimenin yazım hatasıyla oluşmuş hâline benziyor mu? Bir harf eksik/fazla
+    (Öğrencilr), iki harfin yeri değişmiş ya da sık karıştırılan bir harf yanlış yazılmışsa (Kitablar) evet.
+    İlk harfi farklı ya da alakasız bir harf değişmişse (Köçürme / Göçürme, Köpürme) özel isim sayılır."""
+    a, b = tr_kucuk(kelime), tr_kucuk(oneri)
+    if abs(len(a) - len(b)) == 1:
+        kisa, uzun = (a, b) if len(a) < len(b) else (b, a)
+        return any(uzun[:i] + uzun[i + 1:] == kisa for i in range(1, len(uzun)))
+    if len(a) != len(b):
+        return False
+    farklar = [i for i in range(len(a)) if a[i] != b[i]]
+    if len(farklar) == 2 and farklar[1] == farklar[0] + 1 and farklar[0] > 0:
+        return a[farklar[0]] == b[farklar[1]] and a[farklar[1]] == b[farklar[0]]          # harflerin yeri değişmiş
+    return (len(farklar) == 1 and farklar[0] > 0
+            and any(a[farklar[0]] in k and b[farklar[0]] in k for k in KARISAN_HARFLER))
+
+
+def degisken_mi(tarama, m, kucuk, sozluk) -> bool:
+    """Matematikteki değişkenler ve onlara gelen ekler: x, xa, xn, ab, mx, "a nın" (a'nın)."""
+    if sozluk.gecerli_mi(kucuk):
+        return False
+    if len(kucuk) <= 2 or (len(kucuk) <= 3 and re.search(r"[xqw]", kucuk)):
+        return True
+    return len(kucuk) <= 4 and bool(re.search(r"(?:^|[\s(])[a-zA-Z]\s+$", tarama[:m.start()]))
+
+
+def kelimeleri_denetle(sayfa, par_no, metin, veri, sozluk, tdk=None, belge_ozel=frozenset(), matematik=False) -> list[Bulgu]:
     """veri: Denetleyici'nin kelime listeleri (argo, yanlislar, ozel_isimler, izinli_kokler)."""
     bulgular = []
     tarama = adresleri_ort(metin)
@@ -84,6 +114,7 @@ def kelimeleri_denetle(sayfa, par_no, metin, veri, sozluk, tdk=None, belge_ozel=
         tamami_buyuk = govde.isupper()
         if (len(govde) < 2 or kaynakca or kucuk in BIRIMLER or kucuk.startswith(veri.izinli_kokler)
                 or UZATMA_RE.search(kucuk)                                        # İnanılmaaaaz
+                or degisken_mi(tarama, m, kucuk, sozluk)                           # xa, xn, a nın
                 or (tamami_buyuk and len(govde) < BUYUK_DENETIM_UZUNLUK)):        # PDF, TDK, NATO
             continue
         if not tamami_buyuk and re.search(rf"[{BUYUK_HARF}]", govde[1:]) and not sozluk.sozlukte_var_mi(kucuk):
@@ -145,15 +176,29 @@ def kelimeleri_denetle(sayfa, par_no, metin, veri, sozluk, tdk=None, belge_ozel=
         if kucuk[0] == "l" and sozluk.dogru_yazilmis_mi("ı" + kucuk[1:]):
             continue
 
+        # Türkçede hiçbir kelime ğ ile başlamaz: "ğundan" satırda bölünmüş bir kelimenin parçasıdır.
+        if kucuk[0] == "ğ":
+            continue
+
         oneriler = yazim_onerileri(kucuk, sozluk, None if tdk_ulasilamadi else tdk)
         aciklama = f"“{govde}” Türkçe sözlükte bulunamadı; yanlış yazılmış olabilir."
+        # Formüllü paragraflarda kelimeler formül yüzünden bölünebilir ("x rilebilir"): yalnızca bilinen bir kelimenin
+        # yazım hatasına benzeyen kelimeler bildirilir.
+        if matematik and not any(yazim_hatasina_benzer(govde, o) for o in oneriler):
+            continue
         if tamami_buyuk or (buyuk_baslar and not cumle_basi_mi(tarama, m.start())):
             # Cümle ortasında büyük harfli bilinmeyen kelime özel isim ya da kısaltma olabilir: yalnızca bilinen bir
             # kelimeye çok benziyorsa (Öğrencilr -> öğrenciler) bildirilir. Tırnak içindeki adlar atlanır.
+            # Ad gibi duran kelime (Köçürme, Gümüştepe) bir yazım hatasına benzemiyorsa özel isim sayılır.
+            oneriler = [o for o in oneriler if yazim_hatasina_benzer(govde, o)]
             if not oneriler or tarama[m.start() - 1:m.start()] in ('"', "“"):
                 continue
             aciklama = f"“{govde}” sözlükte yok ama bilinen bir kelimeye çok benziyor. Özel isim değilse yanlış yazılmış."
         elif buyuk_baslar:
+            # Cümle başında büyük harfle başlayan, sözlükteki hiçbir kelimeye benzemeyen kelime özel isimdir
+            # (Fahrünnisa). Bilinen bir kelimeye benziyorsa (Herkez, Guzel) yazım hatası olarak bildirilir.
+            if not any(yazim_hatasina_benzer(govde, o) for o in oneriler):
+                continue
             aciklama = f"“{govde}” Türkçe sözlükte bulunamadı; yanlış yazılmış ya da bir özel isim olabilir."
         if tamami_buyuk:
             oneriler = [tr_buyuk(o) for o in oneriler]

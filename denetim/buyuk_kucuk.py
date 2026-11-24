@@ -25,7 +25,9 @@ def buyuk_i_olabilir(kelime: str, sozluk) -> bool:
     return kelime[:1] == "l" and sozluk.dogru_yazilmis_mi("ı" + tr_kucuk(kelime[1:]))
 
 
-def harf_hatalari_bul(sayfa, par_no, metin, ozel_isimler, sozluk) -> list[Bulgu]:
+def harf_hatalari_bul(sayfa, par_no, metin, ozel_isimler, sozluk, matematik=False) -> list[Bulgu]:
+    """matematik: paragrafta ya da hemen öncesinde formül var. Formül PDF'ten çıkarılınca cümle formülün
+    ortasından başlar gibi görünür ("işleminin sonucunu bulunuz"); bu yüzden cümle başı kuralları uygulanmaz."""
     bulgular, isaretli = [], set()
     tarama = adresleri_ort(metin)
 
@@ -36,14 +38,14 @@ def harf_hatalari_bul(sayfa, par_no, metin, ozel_isimler, sozluk) -> list[Bulgu]
 
     # 1) Paragraf küçük harfle başlıyor. "a) ...", "1. ..." gibi madde işaretleri ve kelime listeleri atlanır.
     m = re.match(rf"^[\s—–-]*([{KUCUK_HARF}][{HARFLER}]*)(.?)", tarama)
-    if (m and not (len(m.group(1)) == 1 and m.group(2) in (")", ".")) and cumle_mi(tarama, sozluk)
+    if (m and not matematik and not (len(m.group(1)) == 1 and m.group(2) in (")", ".")) and cumle_mi(tarama, sozluk)
             and not buyuk_i_olabilir(m.group(1), sozluk)):
         ekle(m.start(1), m.end(1), m.group(1), "Cümleler büyük harfle başlar.", tr_buyuk_ilk(m.group(1)))
 
     # 2) Cümle sonu işaretinden (. ! ?) sonra küçük harfle başlayan cümle
     for m in re.finditer(rf"(\S*)([.!?])([\"”’')\]]*)\s+[\"“‘'(\[]?([{KUCUK_HARF}][{HARFLER}]*)", tarama):
         onceki, isaret, kapanis, kelime = m.group(1), m.group(2), m.group(3), m.group(4)
-        if (kapanis or len(kelime) == 1 or kelime in DEME_KELIMELERI or "=" in onceki
+        if (matematik or kapanis or len(kelime) == 1 or kelime in DEME_KELIMELERI or "=" in onceki
                 or buyuk_i_olabilir(kelime, sozluk)):
             continue                                            # "Geldin mi?" diye sordu / b) şıkkı / 3=? işlemi
         if not cumle_mi(tarama[m.start(4):], sozluk):
