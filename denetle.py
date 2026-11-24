@@ -5,6 +5,7 @@ Komut satırından denetim.
     py -3.12 denetle.py kitap.pdf                  # TDK ile
     py -3.12 denetle.py kitap.pdf --cevrimdisi     # TDK'ye bağlanmadan
     py -3.12 denetle.py kitap.pdf --cikti sonuc    # sonuc.csv ve sonuc.html
+    py -3.12 denetle.py kitap.pdf --tur sayisal    # matematik, fizik gibi sayısal ders kitabı
 
 Çıktı: terminalde özet, CSV ve HTML rapor.
 """
@@ -23,6 +24,8 @@ def main():
     ap.add_argument("--cevrimdisi", action="store_true", help="TDK'ye bağlanma; yalnızca yerel sözlükleri kullan")
     ap.add_argument("--etkinlikleri-denetle", action="store_true",
                     help="Etkinlik bölümlerini de denetle (varsayılan: bilerek yanlış yazılmış alıştırmalar atlanır)")
+    ap.add_argument("--tur", choices=["sozel", "sayisal"], default="sozel",
+                    help="Kitap türü: sozel (Türkçe, tarih...) ya da sayisal (matematik, fizik...). Varsayılan: sozel")
     args = ap.parse_args()
     if not Path(args.pdf).exists():
         sys.exit(f"Dosya bulunamadı: {args.pdf}")
@@ -30,6 +33,7 @@ def main():
     print("Sözlükler yükleniyor…")
     denetleyici = Denetleyici()
     sonuc = denetleyici.pdf_denetle(args.pdf, tdk_kullan=not args.cevrimdisi, etkinlik_atla=not args.etkinlikleri_denetle,
+                                    kitap_turu=args.tur,
                                     ilerleme=lambda asama, yuzde: print(f"\r%{yuzde:3d}  {asama:<60}", end=""))
     print()
     if not sonuc.paragraf_sayisi:

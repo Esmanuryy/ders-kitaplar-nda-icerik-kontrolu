@@ -67,9 +67,10 @@ tr.argo td:nth-child(2){{color:#b30a11;font-weight:bold}}tr.yazim td:nth-child(2
 </style></head><body>
 <h1>Ders Kitabı Denetim Raporu</h1>
 <p><b>Dosya:</b> {e(sonuc.dosya_adi)} — {sonuc.sayfa_sayisi} sayfa, {sonuc.paragraf_sayisi} paragraf</p>
+<p><b>Kitap türü:</b> {"Sayısal ders" if getattr(sonuc, "kitap_turu", "sozel") == "sayisal" else "Sözel ders"}</p>
 <p><b>Bulgu:</b> {len(sonuc.bulgular)} ({sayilar})</p>
 <p><b>Ayrılan özel isimler (hata sayılmadı):</b> {ozel}</p>
-<p><b>Etkinlik bölümü atlanan sayfalar (bilerek yanlış yazılmış alıştırmalar):</b> {etkinlik}</p>
+<p><b>Etkinlik ve çalışma bölümü atlanan sayfalar:</b> {etkinlik}</p>
 <p><b>Metni okunamayan sayfalar (denetlenmedi):</b> {okunamayan}</p>
 <table><tr><th>Sayfa</th><th>Tür</th><th>Kelime</th><th>Açıklama</th><th>Öneri</th><th>Tekrar</th><th>Geçtiği sayfalar</th><th>Bağlam</th></tr>
 {satirlar}</table></body></html>""", encoding="utf-8")

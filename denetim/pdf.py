@@ -49,8 +49,23 @@ ETKINLIK_RE = re.compile(
     r"^(?:\d+\.\s*)?ETK[İI]NL[İI]K\b"                          # 4. ETKİNLİK
     r"|^(?:\d+\.\s*)?Etkinlik\s*$"                              # Etkinlik (tek başına başlık)
     r"|^[a-zçğıöşüA-ZÇĞİÖŞÜ]\.[a-zçğıöşüA-ZÇĞİÖŞÜ]\.(?:\s|$|[A-ZÇĞİÖŞÜ])"   # a.a. / B.B. etkinlik maddeleri
-    r"|^(?:Sıra Sizde|Ölçme ve Değerlendirme|Ölçme Değerlendirme|Değerlendirme Soruları|Haydi Uygulayalım|Uygulayalım)"
+    r"|^(?:\d+\.\s*)?(?:Sıra Sizde|Ölçme ve Değerlendirme|Ölçme Değerlendirme|Değerlendirme Soruları|Haydi Uygulayalım|Uygulayalım)"
     r"|^(?:ÖZ DEĞERLENDİRME ÖLÇEĞİ|Öz Değerlendirme Ölçeği|Akran Değerlendirme Formu|[A-ZÇĞİÖŞÜ /]+ ÖZ DEĞERLENDİRME ÖLÇEĞİ)")
+
+
+# Sayısal derslerin (matematik, fizik, kimya, biyoloji) kitaplarında örnek çözümler ve alıştırmalar. Bunlar formül
+# ve işlem doludur; kitap türü "sayısal" seçilince etkinliklerle birlikte bunlar da atlanır.
+SAYISAL_CALISMA_RE = re.compile(
+    r"^(?:\d+\.\s*)?(?:ÖRNEK|Örnek|UYGULAMA|Uygulama|ALIŞTIRMALAR?|Alıştırmalar?|KONTROL NOKTASI|Kontrol Noktası"
+    r"|ÇÖZÜM|Çözüm|PROBLEM|Problem)\s*:?\s*$")
+
+# Kitap türleri. Sözel: Türkçe, tarih, coğrafya, hayat bilgisi... Sayısal: matematik, fizik, kimya, biyoloji...
+KITAP_TURLERI = {"sozel": "Sözel ders", "sayisal": "Sayısal ders"}
+
+
+def calisma_basligi_mi(metin: str, sayisal: bool) -> bool:
+    """Atlanacak bölümün (etkinlik, sayısal kitaplarda örnek ve alıştırma) başlığı mı?"""
+    return bool(ETKINLIK_RE.search(metin) or (sayisal and SAYISAL_CALISMA_RE.match(metin)))
 
 
 def harfleri_duzelt(metin: str) -> str:
@@ -155,7 +170,7 @@ def yay_ucu_mu(kutu, atilan) -> bool:
     return any(-0.2 * h <= x0 - a1 <= 0.8 * h and abs((b0 + b1) / 2 - orta) < 1.5 * h for a0, b0, a1, b1 in atilan)
 
 
-def sayfa_bloklari(sayfa, etkinlik_atla=False) -> tuple[list[str], bool]:
+def sayfa_bloklari(sayfa, etkinlik_atla=False, sayisal=False) -> tuple[list[str], bool]:
     """Sayfanın metnini okuma sırasıyla verir. Her satır, hemen üstünde ve aynı yatay konumda olan satırın
     devamı sayılır; böylece yan yana sütunlar karışmaz. Dikey ve yay biçimli süs yazıları alınmaz."""
     bayrak = pymupdf.TEXTFLAGS_DICT & ~pymupdf.TEXT_PRESERVE_LIGATURES & ~pymupdf.TEXT_PRESERVE_IMAGES
@@ -208,7 +223,7 @@ def sayfa_bloklari(sayfa, etkinlik_atla=False) -> tuple[list[str], bool]:
     # Etkinlik başlığı varsa, başlığın olduğu yerden sayfa sonuna kadar olan metin alınmaz.
     etkinlik_y = None
     if etkinlik_atla:
-        etkinlik_y = next((s[1] for s in satirlar if ETKINLIK_RE.search(s[4].strip())), None)
+        etkinlik_y = next((s[1] for s in satirlar if calisma_basligi_mi(s[4].strip(), sayisal)), None)
         if etkinlik_y is not None:
             satirlar = [s for s in satirlar if s[1] < etkinlik_y - 3]
 
@@ -281,13 +296,13 @@ def paragraflari_birlestir(parcalar):
     yield from map(tuple, bekleyen)
 
 
-def pdf_parcalari(yol: str, ilerleme=None, etkinlik_atla=False, atlanan=None):
+def pdf_parcalari(yol: str, ilerleme=None, etkinlik_atla=False, atlanan=None, sayisal=False):
     """PDF'teki her metin parçasını (sayfa_no, metin) olarak verir. etkinlik_atla açıksa etkinlik bölümleri alınmaz
     ve bu sayfaların numaraları atlanan listesine eklenir."""
     with pymupdf.open(yol) as belge:
         toplam = belge.page_count
         for sayfa_no, sayfa in enumerate(belge, start=1):
-            bloklar, etkinlik_var = sayfa_bloklari(sayfa, etkinlik_atla)
+            bloklar, etkinlik_var = sayfa_bloklari(sayfa, etkinlik_atla, sayisal)
             if etkinlik_var and atlanan is not None:
                 atlanan.append(sayfa_no)
             for blok in bloklar:
@@ -297,9 +312,9 @@ def pdf_parcalari(yol: str, ilerleme=None, etkinlik_atla=False, atlanan=None):
                 ilerleme(sayfa_no, toplam)
 
 
-def pdf_paragraflari(yol: str, ilerleme=None, etkinlik_atla=False, atlanan=None):
+def pdf_paragraflari(yol: str, ilerleme=None, etkinlik_atla=False, atlanan=None, sayisal=False):
     """PDF'teki paragrafları (sayfa_no, paragraf_no, metin) olarak verir."""
-    return paragraflari_birlestir(pdf_parcalari(yol, ilerleme, etkinlik_atla, atlanan))
+    return paragraflari_birlestir(pdf_parcalari(yol, ilerleme, etkinlik_atla, atlanan, sayisal))
 
 
 def metin_paragraflari(metin: str) -> list:

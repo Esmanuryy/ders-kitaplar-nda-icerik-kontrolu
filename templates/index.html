@@ -4,80 +4,124 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ders Kitabı Denetleyici</title>
+<meta name="description" content="Ders kitaplarındaki argo ifadeleri, yazım ve noktalama hatalarını sayfa numarasıyla bulur.">
 <link rel="stylesheet" href="{{ url_for('static', filename='stil.css') }}">
 </head>
 <body>
 
 <header class="ust">
   <div class="kap ust-ic">
-    <div>
-      <h1>Ders Kitabı Denetleyici</h1>
-      <p>Ders kitaplarındaki argo ifadeleri, yazım ve noktalama hatalarını sayfa numarasıyla bulur.</p>
-    </div>
-    <nav aria-label="Sayfa içi">
-      <a href="#denetle">Denetle</a>
-      <a href="#nasil">Nasıl çalışır?</a>
-    </nav>
+    <a class="marka" href="/" aria-label="Ders Kitabı Denetleyici ana sayfa">
+      <span class="marka-simge" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v16H6.5a1.5 1.5 0 0 0 0 3H20v1H6.5A2.5 2.5 0 0 1 4 19.5v-15Zm5.3 8.2 1.4-1.4 1.8 1.8 3.8-3.8 1.4 1.4-5.2 5.2-3.2-3.2Z"/></svg>
+      </span>
+      <span>
+        <strong>Ders Kitabı Denetleyici</strong>
+        <small>İçerik ve tutarlılık denetimi</small>
+      </span>
+    </a>
+    <button type="button" class="btn ikincil gizli" id="yeni-btn">Yeni denetim</button>
   </div>
 </header>
 
-<main class="kap">
+<main class="kap ana">
 
-  <!-- ============ Giriş ============ -->
-  <section class="kart" id="denetle" aria-labelledby="denetle-baslik">
-    <h2 id="denetle-baslik">Kitabı yükleyin</h2>
-    <p class="aciklama">PDF dosyasını seçin ya da denemek için bir metin yapıştırın.</p>
-
-    <div class="sekmeler" role="tablist" aria-label="Giriş yöntemi">
-      <button class="sekme" role="tab" id="sekme-pdf" aria-selected="true" aria-controls="panel-pdf">PDF yükle</button>
-      <button class="sekme" role="tab" id="sekme-metin" aria-selected="false" aria-controls="panel-metin" tabindex="-1">Metin yapıştır</button>
+  <section class="giris" id="denetle" aria-labelledby="denetle-baslik">
+    <div class="giris-baslik">
+      <h1 id="denetle-baslik">Ders kitabını denetleyin</h1>
+      <p>Argo ifadeleri, yazım ve noktalama hatalarını sayfa numarası, açıklama ve doğru yazılışıyla listeler.</p>
     </div>
 
-    <div id="panel-pdf" role="tabpanel" aria-labelledby="sekme-pdf">
-      <label class="yukle" id="yukle" for="pdf-girdi" tabindex="0">
-        <span class="yukle-simge" aria-hidden="true">PDF</span>
-        <strong>PDF dosyasını buraya sürükleyin</strong>
-        <span>ya da tıklayıp seçin · en fazla {{ max_mb }} MB</span>
-        <input type="file" id="pdf-girdi" accept="application/pdf,.pdf">
-      </label>
-      <div class="secili gizli" id="secili">
-        <span id="secili-ad"></span>
-        <button type="button" class="baglanti" id="secili-kaldir">Kaldır</button>
+    <div class="kart form-kart">
+
+      <!-- 1. Kitap türü -->
+      <fieldset class="adim tur-sec" id="adim-tur">
+        <legend class="adim-baslik"><span class="adim-no">1</span>Kitap türü <span class="zorunlu">zorunlu</span></legend>
+        <div class="tur-secenekler">
+          <label class="tur">
+            <input type="radio" name="tur" value="sozel" required>
+            <span class="tur-simge" aria-hidden="true">Aa</span>
+            <span class="tur-metin"><strong>Sözel ders</strong><small>Türkçe, tarih, coğrafya, hayat bilgisi, din kültürü</small></span>
+          </label>
+          <label class="tur">
+            <input type="radio" name="tur" value="sayisal">
+            <span class="tur-simge" aria-hidden="true">∑</span>
+            <span class="tur-metin"><strong>Sayısal ders</strong><small>Matematik, fizik, kimya, biyoloji. Formüller hata sayılmaz; örnek çözümler ve alıştırmalar atlanır.</small></span>
+          </label>
+        </div>
+        <p class="tur-uyari" id="tur-uyari">Kitap yükleyebilmek için önce kitap türünü seçin.</p>
+      </fieldset>
+
+      <!-- 2. Kitap -->
+      <div class="adim" id="adim-kitap">
+        <h2 class="adim-baslik"><span class="adim-no">2</span>Kitap</h2>
+        <div class="sekmeler" role="tablist" aria-label="Giriş yöntemi">
+          <button class="sekme" role="tab" id="sekme-pdf" aria-selected="true" aria-controls="panel-pdf">PDF yükle</button>
+          <button class="sekme" role="tab" id="sekme-metin" aria-selected="false" aria-controls="panel-metin" tabindex="-1">Metin yapıştır</button>
+        </div>
+
+        <div id="panel-pdf" role="tabpanel" aria-labelledby="sekme-pdf">
+          <label class="yukle kapali" id="yukle" for="pdf-girdi" tabindex="0" aria-disabled="true">
+            <svg class="yukle-simge" viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><path fill="currentColor" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm7 1.5V9h5.5L13 3.5ZM12 11l-4 4h3v4h2v-4h3l-4-4Z"/></svg>
+            <strong>PDF dosyasını buraya sürükleyin ya da tıklayıp seçin</strong>
+            <span>Yalnızca PDF · en fazla {{ max_mb }} MB · dosya denetimden sonra silinir</span>
+            <input type="file" id="pdf-girdi" accept="application/pdf,.pdf" disabled>
+          </label>
+          <div class="secili gizli" id="secili">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm7 1.5V9h5.5L13 3.5Z"/></svg>
+            <span id="secili-ad"></span>
+            <button type="button" class="baglanti" id="secili-kaldir">Kaldır</button>
+          </div>
+        </div>
+
+        <div id="panel-metin" role="tabpanel" aria-labelledby="sekme-metin" class="gizli">
+          <label for="metin-girdi" class="gorunmez">Denetlenecek metin</label>
+          <textarea id="metin-girdi" rows="7" placeholder="Metni buraya yapıştırın. Paragrafları boş bir satırla ayırabilirsiniz."></textarea>
+          <button type="button" class="baglanti" id="ornek-btn">Örnek hatalı metni yükle</button>
+        </div>
+      </div>
+
+      <!-- 3. Seçenekler -->
+      <div class="adim" id="adim-secenek">
+        <h2 class="adim-baslik"><span class="adim-no">3</span>Seçenekler</h2>
+        <div class="secenekler">
+          <label class="anahtar">
+            <input type="checkbox" id="tdk-sec" checked>
+            <span class="anahtar-kutu" aria-hidden="true"></span>
+            <span><strong>TDK sözlüğünü kullan</strong><small>İnternet gerekir. TDK cevap vermezse bilgisayardaki sözlükle devam edilir.</small></span>
+          </label>
+          <label class="anahtar" id="etkinlik-secenek">
+            <input type="checkbox" id="etkinlik-sec" checked>
+            <span class="anahtar-kutu" aria-hidden="true"></span>
+            <span><strong>Etkinlik ve çalışmaları atla</strong><small>Bu bölümlerdeki yanlışlar öğrenci bulsun diye bilerek yazılır.</small></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-alt">
+        <div class="uyari hata gizli" id="hata" role="alert"></div>
+        <button class="btn buyuk" id="denetle-btn" disabled>Denetimi başlat</button>
       </div>
     </div>
 
-    <div id="panel-metin" role="tabpanel" aria-labelledby="sekme-metin" class="gizli">
-      <label for="metin-girdi" class="etiket">Denetlenecek metin</label>
-      <textarea id="metin-girdi" rows="7" placeholder="Metni buraya yapıştırın. Paragrafları boş bir satırla ayırabilirsiniz."></textarea>
-      <button type="button" class="baglanti" id="ornek-btn">Örnek hatalı metni yükle</button>
-    </div>
-
-    <div class="alt-satir">
-      <label class="anahtar">
-        <input type="checkbox" id="tdk-sec" checked>
-        <span class="anahtar-kutu" aria-hidden="true"></span>
-        <span><strong>TDK sözlüğünü de kullan</strong><small>İnternet gerekir. TDK cevap vermezse bilgisayardaki sözlükle devam edilir.</small></span>
-      </label>
-      <label class="anahtar" id="etkinlik-secenek">
-        <input type="checkbox" id="etkinlik-sec" checked>
-        <span class="anahtar-kutu" aria-hidden="true"></span>
-        <span><strong>Etkinlikleri atla</strong><small>Etkinliklerdeki yanlışlar öğrenci bulsun diye bilerek yazılır; bu bölümler denetlenmez.</small></span>
-      </label>
-      <button class="btn" id="denetle-btn" disabled>Denetle</button>
-    </div>
-    <div class="uyari hata gizli" id="hata" role="alert"></div>
+    <ul class="kapsam" aria-label="Denetlenen konular">
+      <li><span class="isaret argo"></span>Argo ve uygunsuz ifadeler</li>
+      <li><span class="isaret yazim"></span>Yazım, büyük-küçük harf ve kesme işareti</li>
+      <li><span class="isaret nokt"></span>Noktalama</li>
+    </ul>
   </section>
 
   <!-- ============ Sonuçlar ============ -->
   <section id="sonuclar" class="gizli" aria-labelledby="sonuc-baslik" aria-live="polite">
     <div class="sonuc-ust">
       <div>
-        <h2 id="sonuc-baslik">Denetim sonucu</h2>
-        <p class="aciklama" id="sonuc-dosya"></p>
+        <p class="ust-etiket">Denetim raporu</p>
+        <h2 id="sonuc-baslik"></h2>
+        <ul class="meta" id="sonuc-meta"></ul>
       </div>
       <div class="indir">
-        <a class="btn ikincil" id="indir-html" href="#">Raporu indir (HTML)</a>
-        <a class="btn ikincil" id="indir-csv" href="#">Excel için indir (CSV)</a>
+        <a class="btn ikincil" id="indir-html" href="#">Raporu indir</a>
+        <a class="btn ikincil" id="indir-csv" href="#">Excel (CSV)</a>
         <button class="btn ikincil" id="yazdir-btn" type="button">Yazdır</button>
       </div>
     </div>
@@ -90,11 +134,11 @@
       <p id="ozel-liste"></p>
     </details>
 
-    <div class="kart">
+    <div class="kart liste-kart">
       <div class="arac">
         <div class="filtreler" id="filtreler" role="group" aria-label="Hata türüne göre süz"></div>
         <div class="arac-sag">
-          <input class="ara" id="ara" type="search" placeholder="Kelime ara…" aria-label="Sonuçlarda ara">
+          <input class="ara" id="ara" type="search" placeholder="Kelime ara" aria-label="Sonuçlarda ara">
           <select id="sirala" aria-label="Sıralama">
             <option value="sayfa">Sayfa sırasına göre</option>
             <option value="tekrar">En çok tekrar edene göre</option>
@@ -104,35 +148,20 @@
       </div>
       <div class="liste" id="liste"></div>
       <div class="daha gizli" id="daha"><button class="btn ikincil" id="daha-btn" type="button">Daha fazla göster</button></div>
-      <p class="not gizli" id="kesildi"></p>
-    </div>
-  </section>
-
-  <!-- ============ Nasıl çalışır ============ -->
-  <section id="nasil" class="bolum" aria-labelledby="nasil-baslik">
-    <h2 id="nasil-baslik">Nasıl çalışır?</h2>
-    <ol class="adimlar">
-      <li><b>PDF okunur.</b> Metin sayfa sayfa çıkarılır; bozuk harfler, satır sonu tireleri ve yan yana sütunlar düzeltilir. Bilerek yanlış yazılmış etkinlikler atlanır.</li>
-      <li><b>Özel isimler ayrılır.</b> Kişi, yer ve kurum adları hata sayılmaz; ayrı bir listede gösterilir.</li>
-      <li><b>Her kelime tek tek taranır.</b> Kelimeler birleştirilmez, anlamına bakılmaz; yazılışı ve sözlük kaydı incelenir.</li>
-      <li><b>Sonuç raporlanır.</b> Her hatanın sayfası, neden hata olduğu ve doğru yazılışı gösterilir.</li>
-    </ol>
-    <div class="kriterler">
-      <div class="kriter argo"><h3>Argo ve uygunsuz ifade</h3><p>TDK Güncel Türkçe Sözlük'teki "argo" ve "kaba" etiketleri ile argo listesi kullanılır.</p></div>
-      <div class="kriter yazim"><h3>Yazım</h3><p>Türkçe sözlük (Hunspell), Zemberek ve TDK ile kontrol edilir. Büyük/küçük harf ve kesme işareti hataları da bulunur.</p></div>
-      <div class="kriter nokta"><h3>Noktalama</h3><p>TDK Yazım Kılavuzu'na dayalı kurallarla eksik nokta, eksik boşluk, parantez, tırnak ve kelime tekrarı hataları bulunur.</p></div>
     </div>
   </section>
 </main>
 
-
 <div class="bekle" id="bekle" role="status" aria-live="polite">
   <div class="bekle-kutu">
-    <strong>Denetleniyor</strong>
+    <div class="bekle-ust">
+      <span class="donen" aria-hidden="true"></span>
+      <strong>Kitap denetleniyor</strong>
+    </div>
     <p class="bekle-asama" id="bekle-asama">Hazırlanıyor…</p>
     <div class="cubuk" aria-hidden="true"><div id="bekle-cubuk"></div></div>
-    <p class="bekle-alt"><span id="bekle-yuzde">%0</span> · <span id="bekle-sure">0 sn</span></p>
-    <p class="not">Büyük kitaplarda bir iki dakika sürebilir. Lütfen sayfayı kapatmayın.</p>
+    <p class="bekle-alt"><span id="bekle-yuzde">%0</span><span id="bekle-sure">0 sn</span></p>
+    <p class="not">Büyük kitaplarda birkaç dakika sürebilir. Lütfen sayfayı kapatmayın.</p>
   </div>
 </div>
 

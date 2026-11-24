@@ -181,6 +181,32 @@ class EtkinlikAtlama(unittest.TestCase):
         self.assertIn("Herkez", [b.kelime for b in hepsi.bulgular])
 
 
+class KitapTuru(unittest.TestCase):
+    def test_sayisal_kitapta_formul_hata_sayilmaz(self):
+        metin = "Buna göre x ,y ve z sayıları için f(x) = 2x + 3 olur."
+        sozel = D.paragraf_denetle(1, 1, metin, None, sayisal=False)
+        sayisal = D.paragraf_denetle(1, 1, metin, None, sayisal=True)
+        self.assertTrue(any(b.kriter == "NOKTALAMA" for b in sozel))
+        self.assertEqual([(b.kelime, b.aciklama) for b in sayisal], [])
+
+    def test_sayisal_kitapta_ornek_ve_alistirma_atlanir(self):
+        with tempfile.TemporaryDirectory() as klasor:
+            yol = Path(klasor) / "matematik.pdf"
+            belge = pymupdf.open()
+            sayfa = belge.new_page()
+            sayfa.insert_font(fontname="tr", fontfile="C:/Windows/Fonts/arial.ttf")
+            for y, satir in [(60, "Konu anlatımında guzel bir hata var."), (120, "1. ÖRNEK"),
+                             (150, "Herkez bu soruyu çözebilir.")]:
+                sayfa.insert_text((50, y), satir, fontname="tr", fontsize=11)
+            belge.save(yol)
+            belge.close()
+            sayisal = D.pdf_denetle(yol, tdk_kullan=False, kitap_turu="sayisal")
+            sozel = D.pdf_denetle(yol, tdk_kullan=False, kitap_turu="sozel")
+        self.assertEqual([b.kelime for b in sayisal.bulgular], ["guzel"])
+        self.assertIn("Herkez", [b.kelime for b in sozel.bulgular])
+        self.assertEqual(sayisal.kitap_turu, "sayisal")
+
+
 class Birlestirme(unittest.TestCase):
     def test_ayni_kelime_tek_bulgu(self):
         b = [Bulgu(s, 1, "YAZIM", "guzel", "a", "güzel", "") for s in (3, 3, 7)]

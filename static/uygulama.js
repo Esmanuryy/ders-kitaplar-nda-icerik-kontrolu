@@ -45,19 +45,35 @@
     dugmeDurumu();
   }
 
+  function kitapTuru() {
+    const secili = document.querySelector('input[name="tur"]:checked');
+    return secili ? secili.value : null;
+  }
+
   function dugmeDurumu() {
-    $("#denetle-btn").disabled = pdfSekmesi() ? !pdfDosya : $("#metin-girdi").value.trim().length < 3;
+    const tur = kitapTuru();
+    // Kitap türü seçilmeden PDF yüklenemez ve denetim başlatılamaz.
+    $("#pdf-girdi").disabled = !tur;
+    $("#yukle").classList.toggle("kapali", !tur);
+    $("#yukle").setAttribute("aria-disabled", String(!tur));
+    $("#tur-uyari").classList.toggle("gizli", !!tur);
+    $("#denetle-btn").disabled = !tur || (pdfSekmesi() ? !pdfDosya : $("#metin-girdi").value.trim().length < 3);
   }
 
   function dosyaSec(dosya) {
     hataGizle();
+    if (dosya && !kitapTuru()) {
+      hataGoster("PDF yüklemeden önce kitap türünü seçin (sözel ya da sayısal).");
+      $(".tur-sec").scrollIntoView({ behavior: "smooth", block: "center" });
+      dosya = null;
+    }
     if (dosya && !dosya.name.toLowerCase().endsWith(".pdf")) {
       hataGoster("Yalnızca PDF dosyaları yüklenebilir.");
       dosya = null;
     }
     pdfDosya = dosya || null;
     $("#secili").classList.toggle("gizli", !pdfDosya);
-    if (pdfDosya) $("#secili-ad").textContent = "Seçilen dosya: " + pdfDosya.name + " (" + (pdfDosya.size / 1048576).toFixed(1).replace(".", ",") + " MB)";
+    if (pdfDosya) $("#secili-ad").textContent = pdfDosya.name + " · " + (pdfDosya.size / 1048576).toFixed(1).replace(".", ",") + " MB";
     dugmeDurumu();
   }
 
@@ -123,9 +139,10 @@
         f.append("pdf", pdfDosya);
         f.append("tdk", tdk ? "1" : "0");
         f.append("etkinlik", $("#etkinlik-sec").checked ? "1" : "0");
+        f.append("tur", kitapTuru());
         is = await gonder("/denetle/pdf", f, false);
       } else {
-        is = await gonder("/denetle/metin", { metin: $("#metin-girdi").value, tdk }, true);
+        is = await gonder("/denetle/metin", { metin: $("#metin-girdi").value, tdk, tur: kitapTuru() }, true);
       }
       sonuc = await isiIzle(is.is_id);
       sonuc.id = is.is_id;
@@ -217,13 +234,17 @@
 
   function sonuclariGoster() {
     const s = sonuc;
-    $("#sonuc-dosya").textContent = s.dosya + " · " + s.sayfa_sayisi + " sayfa · " + s.paragraf_sayisi + " paragraf · " + s.sure + " saniye";
+    $("#sonuc-baslik").textContent = s.dosya;
+    const meta = $("#sonuc-meta");
+    meta.replaceChildren();
+    [s.kitap_turu, s.sayfa_sayisi + " sayfa", s.paragraf_sayisi + " paragraf",
+      String(s.sure).replace(".", ",") + " saniye"].forEach((m) => meta.append(el("li", null, m)));
 
     const ozet = $("#ozet");
     ozet.replaceChildren();
-    [["", s.toplam_bulgu, "toplam bulgu"], ["argo", s.sayilar.ARGO, "argo / uygunsuz"],
+    [["toplam", s.toplam_bulgu, "toplam bulgu"], ["argo", s.sayilar.ARGO, "argo / uygunsuz"],
       ["yazim", s.sayilar.YAZIM, "yazım"], ["nokta", s.sayilar.NOKTALAMA, "noktalama"],
-      ["", s.ozel_isimler.length, "ayrılan özel isim"]].forEach(([sinif, sayi, ad]) => {
+      ["ozel", s.ozel_isimler.length, "ayrılan özel isim"]].forEach(([sinif, sayi, ad]) => {
       const k = el("div", sinif);
       k.append(el("b", null, String(sayi)), el("span", null, ad));
       ozet.append(k);
@@ -233,7 +254,7 @@
     const [tur, mesaj] = TDK_MESAJ[s.tdk_durum] || TDK_MESAJ.kapali;
     bildirim(tur, mesaj);
     if (s.etkinlik_sayfalari && s.etkinlik_sayfalari.length) {
-      bildirim("bilgi", "Etkinlik bölümleri denetlenmedi (" + s.etkinlik_sayfalari.length + " sayfa). Etkinliklerdeki yanlışlar öğrenci bulsun diye bilerek yazılır. Sayfalar: "
+      bildirim("bilgi", "Etkinlik ve çalışma bölümleri denetlenmedi (" + s.etkinlik_sayfalari.length + " sayfa). Bu bölümlerdeki yanlışlar öğrenci bulsun diye bilerek yazılır. Sayfalar: "
         + s.etkinlik_sayfalari.join(", ") + ".");
     }
     if (s.okunamayan_sayfalar.length) {
@@ -253,6 +274,7 @@
     listeyiCiz();
     const bolum = $("#sonuclar");
     bolum.classList.remove("gizli");
+    $("#yeni-btn").classList.remove("gizli");
     bolum.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -268,7 +290,9 @@
   $("#pdf-girdi").addEventListener("change", (e) => dosyaSec(e.target.files[0]));
   $("#secili-kaldir").addEventListener("click", () => { $("#pdf-girdi").value = ""; dosyaSec(null); });
   const yukle = $("#yukle");
-  yukle.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#pdf-girdi").click(); } });
+  yukle.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (kitapTuru()) $("#pdf-girdi").click(); else dosyaSec({ name: ".pdf" }); } });
+  yukle.addEventListener("click", (e) => { if (!kitapTuru()) { e.preventDefault(); dosyaSec({ name: ".pdf" }); } });
+  document.querySelectorAll('input[name="tur"]').forEach((r) => r.addEventListener("change", () => { hataGizle(); dugmeDurumu(); }));
   ["dragenter", "dragover"].forEach((t) => yukle.addEventListener(t, (e) => { e.preventDefault(); yukle.classList.add("surukle"); }));
   ["dragleave", "drop"].forEach((t) => yukle.addEventListener(t, (e) => { e.preventDefault(); yukle.classList.remove("surukle"); }));
   yukle.addEventListener("drop", (e) => dosyaSec(e.dataTransfer.files[0]));
@@ -279,5 +303,14 @@
   $("#sirala").addEventListener("change", (e) => { siralama = e.target.value; listeyiCiz(); });
   $("#daha-btn").addEventListener("click", () => { gosterilen += SAYFA_BOYUTU; listeyiCiz(); });
   $("#yazdir-btn").addEventListener("click", () => { gosterilen = Infinity; listeyiCiz(); window.print(); });
+  // Yeni denetim: sonuçlar kapanır, form temizlenir. Seçilen kitap türü ve seçenekler korunur.
+  $("#yeni-btn").addEventListener("click", () => {
+    $("#sonuclar").classList.add("gizli");
+    $("#yeni-btn").classList.add("gizli");
+    $("#pdf-girdi").value = "";
+    $("#metin-girdi").value = "";
+    dosyaSec(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
   dugmeDurumu();
 })();

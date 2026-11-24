@@ -16,7 +16,10 @@ PDF formatındaki bir ders kitabını okur. Argo ifadeleri, yazım hatalarını 
 - Her kelime tek tek taranır. Anlamına bakılmaz; kelimenin yazılışına ve sözlük kaydına bakılır.
 - Özel isimler (Newton, Ankara, Dr. Gülbike YILDIRIM) ayrılır, hata sayılmaz ve ayrı listelenir.
 - Aynı hata kitapta defalarca geçse de bir kez listelenir; kaç kez ve hangi sayfalarda geçtiği yazılır.
-- Etkinlik bölümleri ("1. ETKİNLİK", "a.a." maddeleri, "Sıra Sizde", "Ölçme ve Değerlendirme" gibi başlıklardan sonrası) atlanır. Etkinliklerdeki yanlışlar öğrenci bulsun diye bilerek yazılır. Sitede "Etkinlikleri atla" seçeneği kapatılırsa bu bölümler de denetlenir.
+- Kitabı yüklerken **kitap türü** seçilir:
+  - **Sözel ders** (Türkçe, tarih, coğrafya, hayat bilgisi…): bütün kurallar uygulanır.
+  - **Sayısal ders** (matematik, fizik, kimya, biyoloji…): formüller, işlem işaretleri ve değişkenler (x, f(x), 2x) hata sayılmaz; formül olan paragraflarda noktalama denetlenmez. Örnek çözümler ("1. ÖRNEK", "Çözüm"), "Uygulama", "Alıştırmalar" ve "Kontrol Noktası" bölümleri atlanır.
+- Etkinlik bölümleri ("1. ETKİNLİK", "a.a." maddeleri, "Sıra Sizde", "Ölçme ve Değerlendirme" gibi başlıklardan sonrası) atlanır. Etkinliklerdeki yanlışlar öğrenci bulsun diye bilerek yazılır. Sitede "Etkinlik ve çalışmaları atla" seçeneği kapatılırsa bu bölümler de denetlenir.
 
 ## Kurulum
 
@@ -41,6 +44,7 @@ Adres: `http://127.0.0.1:5000`
 py -3.12 denetle.py kitap.pdf                 # TDK ile
 py -3.12 denetle.py kitap.pdf --cevrimdisi    # TDK'ye bağlanmadan
 py -3.12 denetle.py kitap.pdf --etkinlikleri-denetle   # etkinlik bölümlerini de denetle
+py -3.12 denetle.py kitap.pdf --tur sayisal   # matematik, fizik gibi sayısal ders kitabı
 ```
 Çıktı: `rapor.csv` ve `rapor.html`
 

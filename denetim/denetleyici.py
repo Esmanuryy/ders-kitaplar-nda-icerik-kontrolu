@@ -17,7 +17,7 @@ from .kelime import BUYUK_DENETIM_UZUNLUK, kelimeleri_denetle, tdk_adaylari
 from .metin import HARFLER, KELIME_RE, KOD_RE, adresleri_ort, kelime_govdesi, tr_kucuk
 from .noktalama import noktalama_bul
 from .ozel_isim import ozel_isimleri_ayir
-from .pdf import BOLUNME, MATEMATIK, SUSLU, metin_paragraflari, pdf_paragraflari
+from .pdf import BOLUNME, KITAP_TURLERI, MATEMATIK, SUSLU, metin_paragraflari, pdf_paragraflari
 from .rapor import Bulgu, bulgulari_birlestir
 from .sozluk import Sozluk, liste_oku, yanlis_sozlugu_oku
 from .tdk import TDK, OnbellektenTDK, tdk_guvenilir_mi, toplu_sorgula
@@ -27,6 +27,8 @@ VERI = PROJE / "veri"
 
 # Kelimelerinin bu kadarı hiçbir sözlükte yoksa paragrafın metni PDF'ten bozuk çıkmış (ya da Türkçe değil) sayılır.
 OKUNAMAZ_ORANI = 0.25
+# Sayısal kitaplarda formül sayılan yazılar: işlem işaretleri, 2x, f(x), x = 3, a² gibi ifadeler.
+FORMUL_RE = re.compile(r"[=<>≤≥≠±×÷√∑∫π²³^]|\d\s*[+\-*/]\s*\d|\d[a-zA-Z]\b|\b[a-zA-Z]\s*\(\s*[a-zA-Z0-9]\s*\)")
 
 
 @dataclass
@@ -48,6 +50,7 @@ class Sonuc:
     paragraf_sayisi: int = 0
     tdk_durum: str = "kapali"    # kullanildi / kismen / ulasilamadi / beklenmeyen / kapali
     sure: float = 0.0
+    kitap_turu: str = "sozel"    # sozel / sayisal
 
     def sayilar(self) -> dict:
         s = {"ARGO": 0, "YAZIM": 0, "NOKTALAMA": 0}
@@ -121,13 +124,15 @@ class Denetleyici:
             sonuc.append((s, n, m))
         return sonuc
 
-    def paragraf_denetle(self, sayfa, par_no, metin, tdk=None, belge_ozel=frozenset(), onceki_matematik=False) -> list[Bulgu]:
-        """Bir paragrafı üç kritere göre denetler: argo, yazım (büyük/küçük harf dahil), noktalama."""
+    def paragraf_denetle(self, sayfa, par_no, metin, tdk=None, belge_ozel=frozenset(), onceki_matematik=False,
+                         sayisal=False) -> list[Bulgu]:
+        """Bir paragrafı üç kritere göre denetler: argo, yazım (büyük/küçük harf dahil), noktalama.
+        sayisal: sayısal ders kitabı; işlem ve formül içeren paragraflar matematik ifadesi sayılır."""
         if KOD_RE.search(metin):                     # kod ve formül satırları denetlenmez
             return []
         # Matematik ifadesi olan paragrafta işaretler PDF'ten harf ya da virgül gibi çıkar: kelimeler denetlenir,
         # noktalama denetlenmez.
-        matematik = MATEMATIK in metin
+        matematik = MATEMATIK in metin or (sayisal and bool(FORMUL_RE.search(metin)))
         metin = metin.replace(MATEMATIK, " ")
         bulgular = kelimeleri_denetle(sayfa, par_no, metin, self.listeler, self.sozluk, tdk, belge_ozel,
                                       matematik or onceki_matematik)
@@ -164,13 +169,19 @@ class Denetleyici:
             return None, "beklenmeyen"
         return OnbellektenTDK(gercek), ("kismen" if cevapsiz > 0.05 else "kullanildi")
 
-    def denetle(self, paragraflar, dosya_adi, tdk_kullan=True, ilerleme=None) -> Sonuc:
-        """Paragrafların tamamını denetler. ilerleme(aşama, yüzde) ile durum bildirilir."""
+    def denetle(self, paragraflar, dosya_adi, tdk_kullan=True, ilerleme=None, kitap_turu="sozel",
+                pdf_metni=True) -> Sonuc:
+        """Paragrafların tamamını denetler. ilerleme(aşama, yüzde) ile durum bildirilir.
+        kitap_turu: "sozel" (Türkçe, tarih...) ya da "sayisal" (matematik, fizik...)."""
+        if kitap_turu not in KITAP_TURLERI:
+            raise ValueError(f"Bilinmeyen kitap türü: {kitap_turu}")
+        sayisal = kitap_turu == "sayisal"
         basla = time.time()
         ilerleme = ilerleme or (lambda asama, yuzde: None)
         paragraflar = self.suslu_basliklari_ayikla(
             [(s, n, self.bolunmus_kelimeleri_birlestir(m)) for s, n, m in paragraflar])
-        sonuc = Sonuc(dosya_adi, sayfa_sayisi=len({p[0] for p in paragraflar}), paragraf_sayisi=len(paragraflar))
+        sonuc = Sonuc(dosya_adi, sayfa_sayisi=len({p[0] for p in paragraflar}), paragraf_sayisi=len(paragraflar),
+                      kitap_turu=kitap_turu)
 
         tdk = None
         if tdk_kullan:
@@ -186,12 +197,13 @@ class Denetleyici:
         onceki = (None, "")
         for i, (sayfa, par_no, metin) in enumerate(paragraflar, start=1):
             # Aynı sayfada hemen önceki paragraf formülle bitiyorsa bu paragraf formülün devamı olabilir.
-            onceki_matematik = onceki[0] == sayfa and MATEMATIK in onceki[1]
+            onceki_matematik = onceki[0] == sayfa and (MATEMATIK in onceki[1] or (sayisal and bool(FORMUL_RE.search(onceki[1]))))
             onceki = (sayfa, metin)
-            if self.okunamaz_mi(metin.replace(MATEMATIK, " ")):
+            # Bozuk okunan paragraf yalnızca PDF'te olur; yapıştırılan metin olduğu gibi denetlenir.
+            if pdf_metni and self.okunamaz_mi(metin.replace(MATEMATIK, " ")):
                 okunamayan.append(sayfa)
             else:
-                ham += self.paragraf_denetle(sayfa, par_no, metin, tdk, belge_ozel, onceki_matematik)
+                ham += self.paragraf_denetle(sayfa, par_no, metin, tdk, belge_ozel, onceki_matematik, sayisal)
             if i % 50 == 0 or i == len(paragraflar):
                 ilerleme(f"Metin denetleniyor (paragraf {i}/{len(paragraflar)})", 62 + int(36 * i / len(paragraflar)))
         sonuc.bulgular = bulgulari_birlestir(ham)
@@ -199,15 +211,19 @@ class Denetleyici:
         sonuc.sure = round(time.time() - basla, 1)
         return sonuc
 
-    def pdf_denetle(self, yol, dosya_adi=None, tdk_kullan=True, ilerleme=None, etkinlik_atla=True) -> Sonuc:
-        """etkinlik_atla: kitaptaki etkinlik bölümleri (bilerek yanlış yazılmış alıştırmalar) denetlenmez."""
+    def pdf_denetle(self, yol, dosya_adi=None, tdk_kullan=True, ilerleme=None, etkinlik_atla=True,
+                    kitap_turu="sozel") -> Sonuc:
+        """etkinlik_atla: kitaptaki etkinlik bölümleri (bilerek yanlış yazılmış alıştırmalar) denetlenmez.
+        Sayısal kitaplarda örnek çözümler, uygulamalar ve alıştırmalar da atlanır."""
         ilerleme = ilerleme or (lambda asama, yuzde: None)
         atlanan = []
         paragraflar = list(pdf_paragraflari(str(yol), lambda s, t: ilerleme(
-            f"PDF'ten metin çıkarılıyor (sayfa {s}/{t})", int(18 * s / t)), etkinlik_atla, atlanan))
-        sonuc = self.denetle(paragraflar, dosya_adi or Path(yol).name, tdk_kullan, ilerleme)
+            f"PDF'ten metin çıkarılıyor (sayfa {s}/{t})", int(18 * s / t)), etkinlik_atla, atlanan,
+            kitap_turu == "sayisal"))
+        sonuc = self.denetle(paragraflar, dosya_adi or Path(yol).name, tdk_kullan, ilerleme, kitap_turu)
         sonuc.etkinlik_sayfalari = atlanan
         return sonuc
 
-    def metin_denetle(self, metin, tdk_kullan=True, ilerleme=None) -> Sonuc:
-        return self.denetle(metin_paragraflari(metin), "Yapıştırılan metin", tdk_kullan, ilerleme)
+    def metin_denetle(self, metin, tdk_kullan=True, ilerleme=None, kitap_turu="sozel") -> Sonuc:
+        return self.denetle(metin_paragraflari(metin), "Yapıştırılan metin", tdk_kullan, ilerleme, kitap_turu,
+                            pdf_metni=False)

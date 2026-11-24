@@ -21,6 +21,7 @@ import pymupdf
 from flask import Flask, abort, jsonify, render_template, request, send_file
 
 from denetim import Denetleyici, csv_yaz, html_yaz
+from denetim.pdf import KITAP_TURLERI
 
 MAX_PDF_MB = int(os.environ.get("DENETLEYICI_MAX_MB", "500"))
 MAX_METIN = 500_000              # yapıştırılabilecek en uzun metin (karakter)
@@ -73,12 +74,13 @@ def sonucu_hazirla(is_id: str, sonuc) -> dict:
         "ozel_isimler": sonuc.ozel_adlar.most_common(),
         "okunamayan_sayfalar": sonuc.okunamayan_sayfalar,
         "etkinlik_sayfalari": sonuc.etkinlik_sayfalari,
+        "kitap_turu": KITAP_TURLERI[sonuc.kitap_turu],
         "bulgular": [asdict(b) for b in sonuc.bulgular[:MAX_GOSTERILEN_BULGU]],
     }
 
 
 def calistir(is_id: str, tdk_kullan: bool, pdf_yolu: Path = None, metin: str = None, dosya_adi: str = "",
-             etkinlik_atla: bool = True):
+             etkinlik_atla: bool = True, kitap_turu: str = "sozel"):
     """Denetimi arka planda çalıştırır; site ilerlemeyi /durum adresinden izler."""
     def ilerleme(asama, yuzde):
         ISLER[is_id].update(asama=asama, yuzde=yuzde)
@@ -88,12 +90,12 @@ def calistir(is_id: str, tdk_kullan: bool, pdf_yolu: Path = None, metin: str = N
             ISLER[is_id].update(durum="calisiyor", asama="Başlıyor…", yuzde=1)
             if pdf_yolu:
                 pdf_kontrol(pdf_yolu)
-                sonuc = DENETLEYICI.pdf_denetle(pdf_yolu, dosya_adi, tdk_kullan, ilerleme, etkinlik_atla)
+                sonuc = DENETLEYICI.pdf_denetle(pdf_yolu, dosya_adi, tdk_kullan, ilerleme, etkinlik_atla, kitap_turu)
                 if not sonuc.paragraf_sayisi:
                     raise KullaniciHatasi("PDF'te okunabilir metin yok. Taranmış (resim) bir PDF olabilir; "
                                           "bu tür dosyalar için önce OCR yapılması gerekir.")
             else:
-                sonuc = DENETLEYICI.metin_denetle(metin, tdk_kullan, ilerleme)
+                sonuc = DENETLEYICI.metin_denetle(metin, tdk_kullan, ilerleme, kitap_turu)
             ISLER[is_id].update(durum="bitti", asama="Tamamlandı", yuzde=100, sonuc=sonucu_hazirla(is_id, sonuc))
     except KullaniciHatasi as e:
         ISLER[is_id].update(durum="hata", hata=str(e))
@@ -124,6 +126,9 @@ def ana_sayfa():
 @app.post("/denetle/pdf")
 def denetle_pdf():
     dosya = request.files.get("pdf")
+    tur = request.form.get("tur", "")                    # kitap türü seçilmeden PDF kabul edilmez
+    if tur not in KITAP_TURLERI:
+        return hata("Lütfen kitap türünü seçin (sözel ya da sayısal).")
     if not dosya or not dosya.filename:
         return hata("Lütfen bir PDF dosyası seçin.")
     if not dosya.filename.lower().endswith(".pdf"):
@@ -135,7 +140,7 @@ def denetle_pdf():
             yol.unlink(missing_ok=True)
             return hata("Bu dosya geçerli bir PDF gibi görünmüyor.")
     return is_baslat(tdk_kullan=request.form.get("tdk") == "1", pdf_yolu=yol, dosya_adi=Path(dosya.filename).name,
-                     etkinlik_atla=request.form.get("etkinlik") != "0")
+                     etkinlik_atla=request.form.get("etkinlik") != "0", kitap_turu=tur)
 
 
 @app.post("/denetle/metin")
@@ -146,7 +151,10 @@ def denetle_metin():
         return hata("Lütfen denetlenecek bir metin yazın.")
     if len(metin) > MAX_METIN:
         return hata(f"Metin çok uzun (en fazla {MAX_METIN:,} karakter).".replace(",", "."))
-    return is_baslat(tdk_kullan=bool(veri.get("tdk")), metin=metin)
+    tur = str(veri.get("tur", ""))
+    if tur not in KITAP_TURLERI:
+        return hata("Lütfen kitap türünü seçin (sözel ya da sayısal).")
+    return is_baslat(tdk_kullan=bool(veri.get("tdk")), metin=metin, kitap_turu=tur)
 
 
 @app.get("/durum/<is_id>")
